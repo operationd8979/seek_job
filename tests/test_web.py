@@ -314,6 +314,7 @@ class WorkflowTests(unittest.TestCase):
             elif "render_cv.py" in args[1]:
                 (out / "raw/cv.tex").write_text("SYNTHETIC ONLY", encoding="utf-8")
             elif "build_and_validate.py" in args[1]:
+                self.assertNotIn("--max-pages", args)
                 (out / "Synthetic_CV.pdf").write_bytes(b"%PDF SYNTHETIC TEST ONLY")
             return 0
         with patch("seek_job.web.action", side_effect=lambda root, data: mutate(root, data)), \

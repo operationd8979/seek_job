@@ -61,7 +61,9 @@ Job Object dọn cây tiến trình khi server dừng. Sau gián đoạn, run c�
 Resume với ngân sách còn lại. Không có browser takeover trong runner này;
 nguồn cần đăng nhập giữ blocked để nhập JD thủ công. Không tự Apply/gửi hồ sơ.
 
-CV runner dùng skill của workspace `latex_cv`, chỉ tạo CV tiếng Anh một trang.
+CV runner dùng skill của workspace `latex_cv`, tạo CV tiếng Anh không giới hạn số trang.
+Mỗi CV cần ít nhất hai project khác nhau từ profile; ưu tiên mức độ phù hợp,
+rồi đến kỹ năng có thể áp dụng cho job. Không thu nhỏ chữ hay nén giãn dòng để ép trang.
 Sau agent, runner chạy lại renderer và `build_and_validate.py` để kiểm tra
 profile evidence, template và PDF; chỉ công bố link PDF khi thành công. Máy cần
 các công cụ build mà `latex_cv` yêu cầu (ví dụ Tectonic). Build lỗi được giữ ở
