@@ -1,52 +1,63 @@
-# Preset: Hang. Paths resolve from seek_job root, not storage/.
+# Preset: Dung. Paths resolve from seek_job root, not storage/.
 # Skills are preferences, not an all-skills-required filter. Move confirmed must-haves to must_have_skills.
-# "internal" is interpreted as intern/internship. Target: tester/frontend at HCM.
+# Target: HCM OR international remote that permits working from Vietnam.
+# Docker/Kubernetes/CI-CD/Terraform are optional DevOps suggestions for the supplied "...".
 schema_version: 1
 search_profiles:
-- id: hang_tester
+- id: dung_fullstack
   target_roles:
-  - Tester
-  - QA Tester
-  - Manual Tester
-  - Automation Tester
-  - QA Engineer
-  - Software Test Engineer
+  - Full Stack Developer
+  - Full Stack Engineer
+  - Fullstack Developer
+  - Fullstack Engineer
   levels: &id001
-  - intern
-  - internship
-  - fresher
-  - entry-level
-  - junior
+  - middle
+  - mid
+  - mid-level
+  - intermediate
+  - senior
   must_have_skills: []
   preferred_skills:
-  - React
   - Angular
-  - .NET
-- id: hang_frontend
+  - Azure
+  - Cloud
+  - Microservices
+- id: dung_devops
   target_roles:
-  - Frontend Developer
-  - Front End Developer
-  - Frontend Engineer
-  - Front End Engineer
+  - DevOps Engineer
+  - DevOps Developer
+  - DevOps
   levels: *id001
   must_have_skills: []
   preferred_skills:
-  - React
+  - Azure
+  - Cloud
+  - Microservices
   - Angular
-  - .NET
+  - Docker
+  - Kubernetes
+  - CI/CD
+  - Terraform
 skill_aliases:
-  React:
-  - React.js
-  - ReactJS
-  - React JS
   Angular:
   - Angular
-  .NET:
-  - dotnet
-  - .NET Core
-  - ASP.NET
-  - ASP.NET Core
-  - Dot Net
+  Azure:
+  - Microsoft Azure
+  Cloud:
+  - Cloud computing
+  - Cloud infrastructure
+  - Cloud platform
+  Microservices:
+  - Microservice
+  - Microservice architecture
+  - Microservices architecture
+  CI/CD:
+  - CI CD
+  - Continuous Integration
+  - Continuous Delivery
+  - Continuous Deployment
+  Kubernetes:
+  - K8s
 geography:
   job_countries:
   - VN
@@ -68,26 +79,28 @@ geography:
     - TP HCM
     - Saigon
     - Sài Gòn
-  allow_international_remote: false
+  allow_international_remote: true
 work_modes:
-- on-site
-- hybrid
 - remote
+- hybrid
+- on-site
 employment_types:
 - full-time
-- part-time
-- internship
 - contract
 exclusions:
   hiring_levels:
-  - middle
-  - mid-level
-  - senior
+  - intern
+  - internship
+  - fresher
+  - entry-level
+  - junior
   - lead
   - principal
   - manager
   unpaid: true
-  title_keywords: []
+  title_keywords:
+  - internship
+  - fresher
 freshness:
   posted_within_days: 7
   unknown_date_policy: needs_review
@@ -153,7 +166,7 @@ cv_handoff:
   - open
   profile_gap_check: false
 output:
-  jobs_directory: jobs/hang
-  runs_directory: runs/hang
-  state_file: state/hang/jobs-index.json
-  candidates_file: state/hang/candidates.json
+  jobs_directory: jobs/dung
+  runs_directory: runs/dung
+  state_file: state/dung/jobs-index.json
+  candidates_file: state/dung/candidates.json

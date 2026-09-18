@@ -30,6 +30,11 @@ def role_match(title, targets):
     return any(contains(title, normalize(target)) for target in targets)
 
 
+def city_matches(locations, city, geography):
+    names = [city] + geography.get("city_aliases", {}).get(city, [])
+    return any(contains(location, name) for location in locations for name in names)
+
+
 def evaluate(record, config, at=None):
     at = at or now()
     body = record["_description"]
@@ -53,7 +58,10 @@ def evaluate(record, config, at=None):
     locations = record.get("jobCountries", [])
     scope, eligible = record.get("remoteScope"), record.get("eligibleCountries")
     remote = record.get("workMode") == "remote"
-    if remote and scope == "worldwide":
+    international_remote = remote and geo.get("allow_international_remote", False)
+    if international_remote:
+        add("jobCountries", "pass", "international_remote_country_filter_waived", evidence.get("workMode", ""))
+    elif remote and scope == "worldwide":
         add("jobCountries", "pass", "worldwide_remote", evidence.get("remoteScope", ""))
     elif locations:
         result = bool(set(locations).intersection(geo["job_countries"]))
@@ -61,6 +69,16 @@ def evaluate(record, config, at=None):
             evidence.get("jobCountries", ""))
     else:
         add("jobCountries", "unknown", "job_country_unknown")
+    if geo.get("job_cities"):
+        if international_remote:
+            add("jobCities", "pass", "international_remote_city_filter_waived", evidence.get("workMode", ""))
+        else:
+            city_ok = any(city_matches(record["locations"], city, geo) for city in geo["job_cities"])
+            # Free-text locations may be country-only or an unrecognized city alias.
+            # A missing city match never passes; retain for evidence review.
+            add("jobCities", "pass" if city_ok else "unknown",
+                "target_city_evidenced" if city_ok else "target_city_not_evidenced",
+                evidence.get("locations", ""))
     if remote:
         if scope == "worldwide":
             add("remoteEligibility", "pass", "worldwide_remote", evidence.get("remoteScope", ""))
@@ -73,7 +91,7 @@ def evaluate(record, config, at=None):
     elif record.get("workMode") in ("hybrid", "on-site"):
         city = geo.get("work_from_city")
         local = (geo["work_from_country"] in locations and city
-                 and any(contains(location, city) for location in record["locations"]))
+                 and city_matches(record["locations"], city, geo))
         if local or geo["relocation_allowed"] is True:
             add("commute", "pass", "location_or_relocation_allowed", evidence.get("locations", ""))
         elif geo["relocation_allowed"] is False and geo["work_from_country"] and locations and geo["work_from_country"] not in locations:
@@ -150,6 +168,8 @@ def evaluate(record, config, at=None):
         if not level:
             known = profile["levels"] + config["exclusions"]["hiring_levels"]
             found = [value for value in known if contains(title, value)]
+            found = [value for value in found if not any(
+                value != other and contains(other, value) for other in found)]
             if len(set(found)) == 1:
                 level, level_quote = found[0], title
         level_ok = level in profile["levels"] and level not in config["exclusions"]["hiring_levels"]

@@ -32,10 +32,16 @@ def plan(config, capabilities):
             profile_queries = []
             for profile in config["search_profiles"]:
                 queries = []
-                for role, country, mode in itertools.product(profile["target_roles"], config["geography"]["job_countries"], config["work_modes"]):
-                    skills = profile["must_have_skills"][:1]
-                    query = " ".join([domains[source], f'"{role}"', country, mode] + [f'"{s}"' for s in skills]).strip()
-                    queries.append({"source": source, "kind": "search", "query": query, "profileId": profile["id"]})
+                for role, mode in itertools.product(profile["target_roles"], config["work_modes"]):
+                    geo = config["geography"]
+                    if mode == "remote" and geo.get("allow_international_remote", False):
+                        places = list(dict.fromkeys(["worldwide", geo["work_from_country"] or "international"]))
+                    else:
+                        places = geo.get("job_cities") or geo["job_countries"]
+                    for place in places:
+                        skills = profile["must_have_skills"][:1]
+                        query = " ".join([domains[source], f'"{role}"', place, mode] + [f'"{s}"' for s in skills]).strip()
+                        queries.append({"source": source, "kind": "search", "query": query, "profileId": profile["id"]})
                 profile_queries.append(iter(queries))
             for batch in itertools.zip_longest(*profile_queries):
                 source_tasks.extend(task for task in batch if task)

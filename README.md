@@ -64,6 +64,13 @@ company_boards:
 Chỉ thêm board đã xác minh, không dùng placeholder để tìm. Board mới do agent
 tìm được xuất như đề xuất trong ghi chú task; không tự thay config.
 
+Hai preset Hang/Dung nằm trong [storage](storage/README.md). geography.job_cities
+giới hạn thành phố, city_aliases khai báo tên tương đương. Không tìm được bằng
+chứng thành phố thì needs_review, không tự pass. allow_international_remote:
+true cho phép job remote ngoài địa điểm mục tiêu, nhưng vẫn kiểm tra remote
+eligibility theo work_from_country; nó không cho phép bỏ qua giới hạn US/UK-only.
+Ba trường này tùy chọn; config cũ giữ nguyên cách hoạt động.
+
 ## Chạy trong Codex
 
 Sau khi chỉnh tiêu chí, nói:
