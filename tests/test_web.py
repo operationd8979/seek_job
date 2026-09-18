@@ -1,0 +1,254 @@
+import copy
+import json
+import tempfile
+import threading
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError
+
+import yaml
+
+from seek_job.common import PipelineError, load_config, load_json
+from seek_job.dryrun import fixture_root, synthetic_observation
+from seek_job.engine import Session
+from seek_job.storage import Store
+from seek_job.workflow import mutate, detail, dashboard, batch_path, operations
+from seek_job.web import make_server, command, cv_prompt, Runner
+import subprocess
+import sys
+
+REPO = Path(__file__).resolve().parents[1]
+
+
+class WorkflowTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name) / "fixture"
+        config, _ = load_config(REPO, REPO / "tests/fixtures/search-config.yaml")
+        self.config = copy.deepcopy(config)
+        self.config["cv_handoff"].update(enabled=False, workspace="../cv")
+        self.config["geography"]["work_from_country"] = "VN"
+        fixture_root(self.root, self.config)
+        self.cv = self.root.parent / "cv"
+        (self.cv / "profile").mkdir(parents=True)
+        (self.cv / "templates/ats-single-column").mkdir(parents=True)
+        (self.cv / "profile/personal.md").write_text("- **Full name:** Synthetic Hang\n", encoding="utf-8")
+        (self.cv / "cv.config.yaml").write_text("profile_root: profile\ntemplate_root: templates\noutput_root: applications\n", encoding="utf-8")
+        with Store(self.root, self.config).locked():
+            self.session = Session.start(self.root)
+            self.job = self.session.ingest([synthetic_observation()])[0]
+            self.session.finish()
+        self.run = self.session.cp["runId"]
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def review(self, **extra):
+        job = detail(self.root, self.run)["jobs"][0]
+        return mutate(self.root, dict(action="review", runId=self.run, jobIds=[job["jobId"]],
+                                     status="approved", fingerprints={job["jobId"]: job["fingerprint"]}, **extra))
+
+    def cv_payload(self):
+        return dict(action="queue", kind="cv", runId=self.run, jobIds=[self.job], profile="profile",
+                    confirmedName="Synthetic Hang", template="ats-single-column")
+
+    def test_approve_and_batch_pin_exact_jd_and_profile(self):
+        self.review()
+        op = mutate(self.root, self.cv_payload())
+        batch = load_json(batch_path(self.root, op["batchId"]))
+        self.assertEqual(batch["jobs"][0]["description"], synthetic_observation(self.session.records[self.job]["datePosted"])["description"])
+        self.assertEqual(batch["profileName"], "Synthetic Hang")
+        self.assertFalse((self.cv / "applications").exists())  # queue is not generation
+        self.assertIn("raw/job.md", cv_prompt(batch))
+        self.assertNotIn(batch["jobs"][0]["description"], cv_prompt(batch))
+
+    def test_unapproved_and_wrong_profile_block_cv(self):
+        with self.assertRaises(PipelineError):
+            mutate(self.root, self.cv_payload())
+        self.review()
+        with self.assertRaises(PipelineError):
+            mutate(self.root, dict(self.cv_payload(), confirmedName="Someone else"))
+        self.assertFalse(operations(self.root))
+
+    def test_missing_jd_cannot_be_approved_even_with_override(self):
+        with Store(self.root, self.config).locked():
+            s = Session(self.root, self.run)
+            other = s.ingest([{"schemaVersion": 1, "source": "manual", "url": "https://example.com/blocked"}])[0]
+        job = next(j for j in detail(self.root, self.run)["jobs"] if j["jobId"] == other)
+        with self.assertRaises(PipelineError):
+            mutate(self.root, dict(action="review", runId=self.run, jobIds=[other], status="approved",
+                                   fingerprints={other: job["fingerprint"]}, override=True, note="want it"))
+
+    def test_override_requires_reason_and_keeps_match(self):
+        with Store(self.root, self.config).locked():
+            s = Session(self.root, self.run)
+            o = synthetic_observation()
+            o["facts"]["datePosted"] = None
+            o["evidence"].pop("datePosted")
+            s.ingest([o])
+        # Source merging preserves known facts; use an old explicit date to fail freshness.
+        with Store(self.root, self.config).locked():
+            s = Session(self.root, self.run)
+            s.ingest([synthetic_observation("2020-01-01T00:00:00Z")])
+        with self.assertRaises(PipelineError):
+            self.review()
+        with self.assertRaises(PipelineError):
+            self.review(override=True, note="")
+        self.review(override=True, note="Explicitly retain this historical example.")
+        j = detail(self.root, self.run)["jobs"][0]
+        self.assertEqual(j["review"]["status"], "approved")
+        self.assertNotEqual(j["matchStatus"], "accepted")
+
+    def test_jd_change_invalidates_approval(self):
+        self.review()
+        with Store(self.root, self.config).locked():
+            s = Session(self.root, self.run)
+            o = synthetic_observation()
+            o["description"] += "\nUpdated responsibilities."
+            o["sourceContent"] += "\nUpdated responsibilities."
+            s.ingest([o])
+        self.assertEqual(detail(self.root, self.run)["jobs"][0]["review"]["status"], "stale")
+        with self.assertRaises(PipelineError):
+            mutate(self.root, self.cv_payload())
+
+    def test_history_snapshot_survives_new_run(self):
+        before = detail(self.root, self.run)["jobs"][0]["_description"]
+        with Store(self.root, self.config).locked():
+            newer = Session.start(self.root)
+            o = synthetic_observation()
+            o["description"] += "\nNew run description."
+            o["sourceContent"] += "\nNew run description."
+            newer.ingest([o])
+        self.assertEqual(detail(self.root, self.run)["jobs"][0]["_description"], before)
+
+    def test_delete_restore_keeps_shared_jobs_and_cv(self):
+        candidates = self.root / self.config["output"]["candidates_file"]
+        before = candidates.read_bytes()
+        mutate(self.root, {"action": "delete", "runId": self.run})
+        self.assertEqual(len(dashboard(self.root)["runs"]), 0)
+        self.assertEqual(len(dashboard(self.root)["trash"]), 1)
+        self.assertEqual(before, candidates.read_bytes())
+        mutate(self.root, {"action": "restore", "runId": self.run})
+        self.assertEqual(len(dashboard(self.root)["runs"]), 1)
+
+    def test_path_traversal_rejected(self):
+        for run in ("../config", "..", "runs/anything"):
+            with self.assertRaises(PipelineError):
+                mutate(self.root, {"action": "delete", "runId": run})
+
+    def test_single_operation_and_active_run_no_edit(self):
+        op = mutate(self.root, {"action": "queue", "kind": "collect", "runId": self.run})
+        with self.assertRaises(PipelineError):
+            mutate(self.root, {"action": "queue", "kind": "collect", "runId": self.run})
+        with self.assertRaises(PipelineError):
+            mutate(self.root, {"action": "delete", "runId": self.run})
+        mutate(self.root, {"action": "operation-update", "id": op["id"], "status": "cancelled"})
+        self.review()
+
+    def test_preset_start_does_not_modify_active_config(self):
+        path = self.root / "storage/search-config-hang.yaml"
+        path.parent.mkdir()
+        config = copy.deepcopy(self.config)
+        config["search_profiles"][0]["id"] = "hang_tester"
+        path.write_text(yaml.safe_dump(config), encoding="utf-8")
+        before = (self.root / "config/search-config.yaml").read_bytes()
+        op = mutate(self.root, {"action": "queue", "kind": "search", "preset": "hang"})
+        self.assertEqual(detail(self.root, op["runId"])["config"]["search_profiles"][0]["id"], "hang_tester")
+        self.assertEqual(before, (self.root / "config/search-config.yaml").read_bytes())
+        self.assertFalse(detail(self.root, op["runId"])["checkpoint"]["capabilities"]["webSearch"])
+
+    def test_cv_prepare_rechecks_profile_and_wont_overwrite(self):
+        self.review()
+        op = mutate(self.root, self.cv_payload())
+        (self.cv / "profile/personal.md").write_text("changed", encoding="utf-8")
+        with self.assertRaises(PipelineError):
+            mutate(self.root, {"action": "cv-prepare", "id": op["batchId"]})
+
+    def test_batch_operations_never_launch_external_process(self):
+        with patch("subprocess.Popen", side_effect=AssertionError("Do not launch during queue")):
+            self.review()
+            mutate(self.root, self.cv_payload())
+
+    def test_command_uses_argv_and_sandbox(self):
+        with patch("shutil.which", return_value="codex.exe"):
+            args = command(self.root, True)
+        self.assertIn("--search", args)
+        self.assertIn("workspace-write", args)
+        self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", args)
+        self.assertEqual(args[-1], "-")
+
+    def test_failed_runner_is_recorded_and_releases_slot(self):
+        op = mutate(self.root, {"action": "queue", "kind": "collect", "runId": self.run})
+        runner = Runner(self.root)
+        with patch("seek_job.web.action", side_effect=lambda root, data: mutate(root, data)), \
+             patch.object(runner, "execute", return_value=17):
+            runner.work(op)
+        saved = operations(self.root)[0]
+        self.assertEqual(saved["status"], "failed")
+        self.assertIn("17", saved["error"])
+        self.assertIsNone(runner.process)
+
+    def test_cv_worker_verifies_render_and_build_before_publishing(self):
+        self.review()
+        op = mutate(self.root, self.cv_payload())
+        batch = load_json(batch_path(self.root, op["batchId"]))
+        out = Path(batch["jobs"][0]["outputDir"])
+        runner = Runner(self.root)
+        calls = []
+        def fake_execute(args, log, prompt=None, cwd=None):
+            calls.append(args)
+            if args == ["synthetic-agent"]:
+                (out / "raw/plan.json").write_text('{"template":"ats-single-column"}', encoding="utf-8")
+            elif "render_cv.py" in args[1]:
+                (out / "raw/cv.tex").write_text("SYNTHETIC ONLY", encoding="utf-8")
+            elif "build_and_validate.py" in args[1]:
+                (out / "Synthetic_CV.pdf").write_bytes(b"%PDF SYNTHETIC TEST ONLY")
+            return 0
+        with patch("seek_job.web.action", side_effect=lambda root, data: mutate(root, data)), \
+             patch("seek_job.web.command", return_value=["synthetic-agent"]), \
+             patch.object(runner, "execute", side_effect=fake_execute):
+            runner.work(op)
+        result = load_json(batch_path(self.root, batch["id"]))
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(len(calls), 3)
+        self.assertTrue(result["results"][0]["pdfHashes"])
+        self.assertEqual((out / "raw/job.md").read_text(encoding="utf-8").split("\n\n", 1)[1], batch["jobs"][0]["description"])
+
+    def test_process_tree_is_reaped_without_agent(self):
+        from seek_job.web import ProcessTree
+        import os
+        if os.name != "nt":
+            self.skipTest("Windows job object lifecycle")
+        proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"],
+                                creationflags=subprocess.CREATE_NO_WINDOW)
+        tree = ProcessTree(proc)
+        tree.close()
+        proc.wait(timeout=5)
+        self.assertIsNotNone(proc.poll())
+
+    def test_http_origin_csrf_and_readonly_get(self):
+        server = make_server(self.root, 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base = f"http://127.0.0.1:{server.server_port}"
+        try:
+            state = json.load(urlopen(base + "/api/state"))
+            self.assertEqual(len(state["runs"]), 1)
+            self.assertIn(b"YOUR CAREER WORKSPACE", urlopen(base).read())
+            data = json.dumps({"action": "delete", "runId": self.run}).encode()
+            with self.assertRaises(HTTPError) as ctx:
+                urlopen(Request(base + "/api/action", data=data, headers={"Origin": "https://attacker.example"}))
+            self.assertEqual(ctx.exception.code, 403)
+            request = Request(base + "/api/action", data=data,
+                              headers={"Origin": base, "X-CSRF-Token": state["csrf"], "Content-Type": "application/json"})
+            self.assertEqual(json.load(urlopen(request))["deleted"], self.run)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -112,9 +112,9 @@ class Session:
                 self.cp["notes"].append(note)
 
     @classmethod
-    def start(cls, root, web_search=False, browser=False):
+    def start(cls, root, web_search=False, browser=False, config_path=None):
         root = Path(root).resolve()
-        config, config_text = load_config(root)
+        config, config_text = load_config(root, config_path)
         store = Store(root, config)
         run_id = now()[:10] + "--" + uuid.uuid4().hex[:12]
         run_dir = inside(store.runs, run_id)
@@ -217,6 +217,9 @@ class Session:
             (self.store.index_path, json_text(self.index)),
             (self.store.candidates_path, json_text({"schemaVersion": 1, "candidates": self.records})),
             (self.run_dir / "checkpoint.json", json_text(self.cp)),
+            (self.run_dir / "candidates.snapshot.json", json_text({
+                "schemaVersion": 1, "candidates": {
+                    key: self.records[key] for key in self.cp["outcomes"] if key in self.records}})),
         ])
         writes.extend(report_writes(self))
         self.store.commit(writes)

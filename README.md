@@ -1,5 +1,65 @@
 # seek_job
 
+## Web UI
+
+~~~powershell
+python -m seek_job ui
+~~~
+
+Mở **http://127.0.0.1:8765**. Có thể đổi cổng bằng `--port 8768`.
+UI dùng Python hiện có, không cần npm build hay cài frontend dependencies.
+
+- **Run job search**: chọn Hang, Dung hoặc cấu hình hiện tại. Preset được snapshot
+  cho run mới, không ghi đè `config/search-config.yaml`.
+- **Review**: tìm/lọc job, đọc JD và evidence, mở tin gốc, duyệt/loại từng job
+  hoặc nhiều job. Có form nhập URL hoặc dán JD đầy đủ kèm thời gian capture;
+  JSON nâng cao hỗ trợ bổ sung facts với quote theo observation schema.
+- **Approval**: lưu quyết định, ghi chú và fingerprint của JD. JD/facts thay đổi
+  thì quyết định cũ hết hiệu lực. Job thiếu JD đầy đủ, đã đóng hoặc chưa giải
+  quyết trùng lặp không được duyệt tạo CV. Job còn cảnh báo cần xác nhận ngoại
+  lệ và lý do; quyết định người dùng không thay đổi kết luận bộ lọc tự động.
+- **History**: giữ snapshot kết quả theo run; xóa chuyển vào thùng rác và có
+  thể khôi phục. Không xóa job dùng chung hoặc CV đã xuất. Với run cũ chưa có
+  snapshot, UI thông báo đang đọc candidate state hiện có và lưu snapshot khi
+  review; không thể tái dựng phiên bản JD chưa từng được lưu.
+- **Tạo CV**: chọn các job đã duyệt, profile và template; xác nhận đúng tên
+  ứng viên rồi chạy. Nếu không chọn checkbox job, nút dùng tất cả job đã duyệt.
+  Profile mặc định trong workspace `latex_cv` hiện thuộc Hang. Profile bổ sung
+  có thể đặt ở `latex_cv/profiles/<name>/personal.md` và các file profile đi kèm.
+  UI không tạo hay sửa profile.
+- **Thư viện CV**: trạng thái từng batch/job, log và PDF đã được kiểm tra.
+  Mỗi batch giữ bản JD đã duyệt, hash profile và thư mục output riêng trong
+  `latex_cv/applications/seek-job/<batch-id>/<job-id>/` (theo `output_root`).
+
+Search và CV là hai thao tác riêng. Nút tạo CV là yêu cầu chạy CV rõ ràng của
+người dùng; không tự tạo CV khi search xong hoặc khi duyệt job. Luồng UI dùng
+approval batch riêng, nên vẫn hoạt động với preset tắt `cv_handoff.enabled`;
+manifest tự động `cv-ready.json` giữ nguyên các điều kiện nghiêm ngặt của CLI.
+
+### Runner và kiểm tra
+
+Máy cần có **Codex CLI** trong PATH và đã đăng nhập (`codex login`) để tìm web
+và viết kế hoạch CV. UI chạy `codex exec --json` bằng argv/stdin, sandbox
+`workspace-write`, live search chỉ bật cho search. Không yêu cầu API key trong
+UI và không đọc/lưu credential. Xem [tài liệu chế độ non-interactive](https://learn.chatgpt.com/docs/non-interactive-mode).
+
+Mỗi workspace chạy một pipeline tại một thời điểm; có log và nút Dừng. Windows
+Job Object dọn cây tiến trình khi server dừng. Sau gián đoạn, run cũ vẫn có thể
+Resume với ngân sách còn lại. Không có browser takeover trong runner này;
+nguồn cần đăng nhập giữ blocked để nhập JD thủ công. Không tự Apply/gửi hồ sơ.
+
+CV runner dùng skill của workspace `latex_cv`, chỉ tạo CV tiếng Anh một trang.
+Sau agent, runner chạy lại renderer và `build_and_validate.py` để kiểm tra
+profile evidence, template và PDF; chỉ công bố link PDF khi thành công. Máy cần
+các công cụ build mà `latex_cv` yêu cầu (ví dụ Tectonic). Build lỗi được giữ ở
+batch/log, không đánh dấu thành công. Các bài kiểm tra không chạy agent trả phí,
+live discovery hay tạo CV thật.
+
+Web server chỉ bind `127.0.0.1`, kiểm tra Host/Origin/CSRF, escape nội dung JD.
+Mọi mutation đi qua CLI `ui-action` hoặc `ingest`. File UI nằm dưới `state/ui/`,
+quyết định nằm trong `reviews.json` của từng run. Không expose server qua LAN
+hay reverse proxy; đây là workspace cá nhân, không phải dịch vụ nhiều người dùng.
+
 Pipeline tìm việc thủ công trên Windows. Code quản lý dữ liệu, bằng chứng,
 dedup, bộ lọc và output; agent sử dụng web search/browser thực sự có sẵn để
 khám phá nguồn và đọc hiểu JD. Không tự chạy theo lịch, nộp hồ sơ hoặc tạo CV.

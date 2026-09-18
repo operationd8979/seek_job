@@ -72,3 +72,19 @@ python -m seek_job validate
 
 Keep fixtures out of real jobs/runs/state. Do not change real criteria to make tests
 pass. Public adapters use mocked fixtures in tests. No delegation is required.
+
+## Local dashboard
+
+- `python -m seek_job ui` serves the local web dashboard. `ui-action --input
+  inbox/<file>.json` is the mutation boundary for reviews, operation metadata,
+  trash/restore and explicitly approved CV batches. Do not edit these files manually.
+- `start --config storage/search-config-hang.yaml` snapshots a preset without
+  changing the active config. Never infer browser capability from the UI.
+- A user clicking Generate CV explicitly authorizes a separate CV phase using
+  that batch's approved JD snapshots and confirmed profile. Search itself never
+  generates CVs. Keep latex_cv profile/config/templates/scripts read-only.
+- Do not alter reviews, approval fingerprints or batch snapshots during agent
+  search/CV execution. The dashboard owns these via CLI. Do not claim success
+  without the CV renderer and build validation succeeding.
+- Test the UI against isolated synthetic workspaces. Never approve/delete real
+  jobs, launch paid agents, or generate real CVs just to smoke-test the interface.

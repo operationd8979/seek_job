@@ -22,6 +22,11 @@ def parser():
     start = commands.add_parser("start", help="Create run, plan queries, re-evaluate stored jobs; no network")
     start.add_argument("--web-search-available", action="store_true", help="Set only when the calling agent can use web search")
     start.add_argument("--browser-available", action="store_true", help="Set only when actual browser takeover tools exist")
+    start.add_argument("--config", type=Path, help="Preset path; current config is not overwritten")
+    ui = commands.add_parser("ui", help="Serve local pipeline dashboard")
+    ui.add_argument("--port", type=int, default=8765)
+    action = commands.add_parser("ui-action", help="Dashboard mutations through the CLI")
+    action.add_argument("--input", type=Path, required=True)
     for name, help_text in (
         ("status", "Show persisted checkpoint"), ("resume", "Resume snapshot, recover and re-evaluate; no network"),
         ("ingest", "Import discovered URLs or captured JD observations; no network"),
@@ -66,12 +71,20 @@ def parser():
 
 def run(args):
     root = args.root.resolve()
+    if args.command == "ui":
+        from .web import serve
+        return serve(root, args.port)
+    if args.command == "ui-action":
+        from .workflow import mutate
+        from .common import inside
+        path = inside(root / "inbox", args.input.resolve())
+        return mutate(root, load_json(path))
     if hasattr(args, "run"):
         _, config, _ = find_run(root, args.run)
     elif args.command == "validate-handoff":
         config, _ = load_config(root, args.manifest.resolve().parent / "config.snapshot.yaml")
     else:
-        config, _ = load_config(root)
+        config, _ = load_config(root, args.config if args.command == "start" else None)
     if args.command == "validate":
         from .handoff import cv_context
         context = cv_context(root, config)
@@ -89,7 +102,7 @@ def run(args):
         if args.command == "rebuild-index":
             return {"indexedJobs": store.rebuild(), "candidateQueueRebuilt": False}
         if args.command == "start":
-            session = Session.start(root, args.web_search_available, args.browser_available)
+            session = Session.start(root, args.web_search_available, args.browser_available, args.config)
             return {"runId": session.cp["runId"], "runDirectory": str(session.run_dir), "networkUsed": False}
         session = Session(root, args.run)
         if args.command == "status":
