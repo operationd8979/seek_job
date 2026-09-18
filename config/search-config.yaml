@@ -1,140 +1,82 @@
-# Preset: Hang. Paths resolve from seek_job root, not storage/.
-# Skills are preferences, not an all-skills-required filter. Move confirmed must-haves to must_have_skills.
-# "internal" is interpreted as intern/internship. Target: tester/frontend at HCM.
 schema_version: 1
+
+# VÍ DỤ: chỉnh role, level và skills theo mục tiêu thực tế.
 search_profiles:
-- id: hang_tester
-  target_roles:
-  - Tester
-  - QA Tester
-  - Manual Tester
-  - Automation Tester
-  - QA Engineer
-  - Software Test Engineer
-  levels: &id001
-  - intern
-  - internship
-  - fresher
-  - entry-level
-  - junior
-  must_have_skills: []
-  preferred_skills:
-  - React
-  - Angular
-  - .NET
-- id: hang_frontend
-  target_roles:
-  - Frontend Developer
-  - Front End Developer
-  - Frontend Engineer
-  - Front End Engineer
-  levels: *id001
-  must_have_skills: []
-  preferred_skills:
-  - React
-  - Angular
-  - .NET
+  - id: fullstack_dotnet
+    target_roles: [Full Stack Developer, Full Stack Engineer]
+    levels: [senior, lead]
+    must_have_skills: [".NET", "C#", Angular]
+    preferred_skills: [SQL Server, Azure, Docker, Microservices]
+  - id: backend_dotnet
+    target_roles: [".NET Developer", ".NET Engineer", Backend Engineer]
+    levels: [senior, lead]
+    must_have_skills: [".NET", "C#"]
+    preferred_skills: [SQL Server, Azure, Microsoft Fabric, Kubernetes]
+
 skill_aliases:
-  React:
-  - React.js
-  - ReactJS
-  - React JS
-  Angular:
-  - Angular
-  .NET:
-  - dotnet
-  - .NET Core
-  - ASP.NET
-  - ASP.NET Core
-  - Dot Net
+  ".NET": [dotnet, ".NET Core", ASP.NET, ASP.NET Core]
+  "C#": [CSharp, C Sharp]
+  Angular: [Angular]
+  SQL Server: [MSSQL, Microsoft SQL Server]
+  Azure: [Microsoft Azure]
+
 geography:
-  job_countries:
-  - VN
-  work_from_country: VN
-  # Residence does not establish legal work authorization; fill only verified countries.
+  # Địa điểm của job; Remote được khai báo riêng ở work_modes.
+  job_countries: [VN, GB]
+  # Nơi tôi dự định làm việc. null = chưa cung cấp, không suy ra quyền làm việc.
+  work_from_country: null
   authorized_work_countries: []
-  relocation_allowed: false
+  relocation_allowed: null
   needs_sponsorship: null
   minimum_timezone_overlap_hours: null
-  job_cities:
-  - Ho Chi Minh City
-  work_from_city: Ho Chi Minh City
-  city_aliases:
-    Ho Chi Minh City:
-    - Ho Chi Minh
-    - Hồ Chí Minh
-    - HCM
-    - TP.HCM
-    - TP HCM
-    - Saigon
-    - Sài Gòn
-  allow_international_remote: false
-work_modes:
-- on-site
-- hybrid
-- remote
-employment_types:
-- full-time
-- part-time
-- internship
-- contract
+
+work_modes: [remote, hybrid]
+employment_types: [full-time, contract]
+
 exclusions:
-  hiring_levels:
-  - middle
-  - mid-level
-  - senior
-  - lead
-  - principal
-  - manager
+  hiring_levels: [intern, junior]
   unpaid: true
-  title_keywords: []
+  # Chỉ áp dụng lên title, không loại senior JD vì câu "mentor junior developers".
+  title_keywords: [internship]
+
 freshness:
   posted_within_days: 7
   unknown_date_policy: needs_review
   max_availability_age_hours: 48
+
 matching:
+  # pass/fail/unknown cho từng điều kiện; unknown không tự trở thành pass.
   unknown_hard_constraint_policy: needs_review
   unknown_required_skill_policy: needs_review
+  # Chỉ xếp hạng sau khi vượt hard filters; điểm không thay thế điều kiện bắt buộc.
   ranking_weights:
     preferred_skill_coverage: 60
     freshness: 40
+
 sources:
-  web_search:
-    enabled: true
-    priority: 2
-    required_for_coverage: true
-  company_career_pages:
-    enabled: true
-    priority: 1
-    required_for_coverage: true
-  greenhouse:
-    enabled: true
-    priority: 1
-    required_for_coverage: false
-  lever:
-    enabled: true
-    priority: 1
-    required_for_coverage: false
-  workday:
-    enabled: true
-    priority: 2
-    required_for_coverage: false
+  web_search: {enabled: true, priority: 2, required_for_coverage: true}
+  company_career_pages: {enabled: true, priority: 1, required_for_coverage: true}
+  greenhouse: {enabled: true, priority: 1, required_for_coverage: false}
+  lever: {enabled: true, priority: 1, required_for_coverage: false}
+  workday: {enabled: true, priority: 2, required_for_coverage: false}
   linkedin:
     enabled: true
     priority: 3
     mode: discovery_and_manual
     required_for_coverage: false
-  other_public_sources:
-    enabled: true
-    priority: 3
-    required_for_coverage: false
+  other_public_sources: {enabled: true, priority: 3, required_for_coverage: false}
+
+# ATS APIs thường theo company board, không phải công cụ tìm toàn thị trường.
+# Ví dụ item: {source: greenhouse, company: Acme, board: acme}
 company_boards: []
+
 browser:
   mode: if_available
   on_auth_required: checkpoint_and_continue_other_sources
+
 limits:
   max_queries_per_source: 8
-  max_pages_per_source: 8
+  max_pages_per_source: 5
   max_candidates_per_source: 30
   max_accepted_jobs_per_run: 30
   max_run_minutes: 30
@@ -143,17 +85,17 @@ limits:
   retry_backoff_seconds: 5
   min_request_interval_seconds: 2
   candidate_retry_after_hours: 24
-# CV handoff is off until workspace points to the correct person's CV profile.
+
 cv_handoff:
-  enabled: false
+  enabled: true
   workspace: ../latex_cv
   config_file: cv.config.yaml
   skill_file: .codex/skills/latex-cv-tailor/SKILL.md
-  allowed_availability_statuses:
-  - open
-  profile_gap_check: false
+  allowed_availability_statuses: [open]
+  profile_gap_check: true
+
 output:
-  jobs_directory: jobs/hang
-  runs_directory: runs/hang
-  state_file: state/hang/jobs-index.json
-  candidates_file: state/hang/candidates.json
+  jobs_directory: jobs
+  runs_directory: runs
+  state_file: state/jobs-index.json
+  candidates_file: state/candidates.json
