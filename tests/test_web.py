@@ -16,7 +16,7 @@ from seek_job.dryrun import fixture_root, synthetic_observation
 from seek_job.engine import Session
 from seek_job.storage import Store
 from seek_job.workflow import mutate, detail, dashboard, batch_path, operations
-from seek_job.web import make_server, command, cv_prompt, Runner
+from seek_job.web import make_server, command, cv_prompt, reveal, Runner
 import subprocess
 import sys
 
@@ -209,6 +209,23 @@ class WorkflowTests(unittest.TestCase):
         self.assertTrue((self.cv / "profile/personal.md").exists())
         self.assertTrue(path.exists())
 
+    def test_reveal_opens_job_folder_and_refuses_unknown_or_missing(self):
+        self.review()
+        op = mutate(self.root, self.cv_payload())
+        batch = load_json(batch_path(self.root, op["batchId"]))
+        with self.assertRaises(PipelineError):
+            reveal(self.root, {"batch": op["batchId"]})
+        mutate(self.root, {"action": "cv-prepare", "id": op["batchId"]})
+        with patch("seek_job.web.subprocess.Popen") as popen:
+            reveal(self.root, {"batch": op["batchId"], "job": self.job})
+            self.assertEqual(popen.call_args[0][0][-1], batch["jobs"][0]["outputDir"])
+            reveal(self.root, {"batch": op["batchId"]})
+            self.assertEqual(popen.call_args[0][0][-1], batch["outputRoot"])
+        with self.assertRaises(PipelineError):
+            reveal(self.root, {"batch": op["batchId"], "job": "unknown-job"})
+        with self.assertRaises(PipelineError):
+            reveal(self.root, {"batch": "../config", "job": self.job})
+
     def test_path_traversal_rejected(self):
         for run in ("../config", "..", "runs/anything"):
             with self.assertRaises(PipelineError):
@@ -355,6 +372,12 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(ctx.exception.code, 403)
             self.review()
             op = mutate(self.root, self.cv_payload())
+            mutate(self.root, {"action": "cv-prepare", "id": op["batchId"]})
+            reveal_body = json.dumps({"batch": op["batchId"], "job": self.job}).encode()
+            reveal_request = Request(base + "/api/reveal", data=reveal_body,
+                                     headers={"Origin": base, "X-CSRF-Token": state["csrf"], "Content-Type": "application/json"})
+            with patch("seek_job.web.subprocess.Popen"):
+                self.assertTrue(json.load(urlopen(reveal_request))["opened"])
             mutate(self.root, {"action": "batch-result", "id": op["batchId"], "status": "failed"})
             mutate(self.root, {"action": "operation-update", "id": op["id"], "status": "failed"})
             delete_cv = json.dumps({"action": "cv-delete", "id": op["batchId"]}).encode()

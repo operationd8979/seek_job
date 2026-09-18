@@ -80,6 +80,28 @@ def action(root, data):
     return cli(root, ["ui-action", "--input", str(path)])
 
 
+def reveal(root, payload):
+    """Show a batch (or one job's) CV folder in the desktop file manager."""
+    batch = load_json(batch_path(root, payload.get("batch", "")))
+    output_root = Path(batch["outputRoot"])
+    target = output_root
+    job_id = payload.get("job")
+    if job_id:
+        job = next((j for j in batch["jobs"] if j["jobId"] == job_id), None)
+        if not job:
+            raise PipelineError("Job không thuộc batch này.")
+        target = inside(output_root, Path(job["outputDir"]))
+    if not target.is_dir():
+        raise PipelineError("Thư mục CV chưa tồn tại hoặc đã bị xóa.")
+    if os.name == "nt":
+        subprocess.Popen(["explorer", str(target)], creationflags=subprocess.CREATE_NO_WINDOW)
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", str(target)])
+    else:
+        subprocess.Popen(["xdg-open", str(target)])
+    return {"opened": str(target)}
+
+
 def command(cwd, search=False, agent_config=None):
     executable = shutil.which("codex")
     if not executable:
@@ -338,6 +360,8 @@ def make_server(root, port=8765):
                 payload = json.loads(self.rfile.read(size))
                 if not isinstance(payload, dict):
                     raise PipelineError("JSON object required.")
+                if self.path == "/api/reveal":
+                    return self.send(reveal(root, payload))
                 with runner.lock:
                     if self.path == "/api/cancel":
                         return self.send(runner.cancel())
