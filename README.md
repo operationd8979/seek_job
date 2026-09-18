@@ -35,6 +35,8 @@ UI dùng Python hiện có, không cần npm build hay cài frontend dependencie
 - **Thư viện CV**: trạng thái từng batch/job, log và PDF đã được kiểm tra.
   Mỗi batch giữ bản JD đã duyệt, hash profile và thư mục output riêng trong
   `latex_cv/applications/seek-job/<batch-id>/<job-id>/` (theo `output_root`).
+  Nút **Xóa batch** xóa vĩnh viễn file CV, thư mục output, log và metadata của
+  batch đã kết thúc; approval và run tìm job được giữ nguyên.
 
 Search và CV là hai thao tác riêng. Nút tạo CV là yêu cầu chạy CV rõ ràng của
 người dùng; không tự tạo CV khi search xong hoặc khi duyệt job. Luồng UI dùng

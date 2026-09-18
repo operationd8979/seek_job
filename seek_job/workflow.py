@@ -232,6 +232,35 @@ def mutate(root, payload):
             data.update(status=payload["status"], results=payload.get("results", []), finishedAt=now())
             atomic_json(path, data)
             return data
+        if action == "cv-delete":
+            if active:
+                raise PipelineError("Đợi pipeline hiện tại hoàn tất trước khi xóa batch CV.")
+            batch_id = payload.get("id")
+            path = batch_path(root, batch_id)
+            batch = load_json(path)
+            if batch.get("id") != batch_id or batch.get("status") not in {"completed", "partial", "failed", "cancelled", "interrupted"}:
+                raise PipelineError("Chỉ có thể xóa batch CV đã kết thúc.")
+            workspace = (root / config["cv_handoff"]["workspace"]).resolve()
+            if Path(batch["workspace"]).resolve() != workspace:
+                raise PipelineError("CV workspace đã đổi; không thể xóa batch an toàn.")
+            cv_config = yaml_read((workspace / config["cv_handoff"]["config_file"]).read_text(encoding="utf-8-sig"))
+            applications = inside(workspace, cv_config.get("output_root", "applications"))
+            target = applications / "seek-job" / batch_id
+            if Path(batch["outputRoot"]) != target or inside(applications, target) != target.resolve():
+                raise PipelineError("Đường dẫn batch CV không hợp lệ.")
+            if any(Path(job["outputDir"]) != target / job["jobId"] for job in batch["jobs"]):
+                raise PipelineError("Đường dẫn job CV không hợp lệ.")
+            if target.exists():
+                if any(p.is_symlink() or p.is_junction() for p in (target, target.parent, *target.rglob("*"))):
+                    raise PipelineError("Batch CV chứa liên kết thư mục; không thể xóa an toàn.")
+                shutil.rmtree(target)
+            for operation in operations(root):
+                if operation.get("batchId") == batch_id:
+                    op_path = operation_path(root, operation["id"])
+                    op_path.with_suffix(".log").unlink(missing_ok=True)
+                    op_path.unlink(missing_ok=True)
+            path.unlink()
+            return {"deletedBatch": batch_id}
         if action == "queue":
             if active:
                 raise PipelineError("Một pipeline đang chạy. Hãy đợi hoặc dừng trước khi tiếp tục.")

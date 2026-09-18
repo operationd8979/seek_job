@@ -342,7 +342,7 @@ def make_server(root, port=8765):
                             return self.send(runner.launch(payload), 202)
                         if runner.busy():
                             raise PipelineError("Đợi pipeline hoàn tất hoặc dừng trước khi chỉnh sửa.")
-                        if payload.get("action") not in {"review", "delete", "restore"}:
+                        if payload.get("action") not in {"review", "delete", "restore", "cv-delete"}:
                             raise PipelineError("Action denied.")
                         return self.send(action(root, payload))
                     if self.path == "/api/import":

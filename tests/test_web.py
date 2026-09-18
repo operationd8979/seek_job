@@ -11,7 +11,7 @@ from urllib.error import HTTPError
 import yaml
 
 from seek_job.agent_config import load_agent_config
-from seek_job.common import PipelineError, load_config, load_json
+from seek_job.common import PipelineError, atomic_json, load_config, load_json
 from seek_job.dryrun import fixture_root, synthetic_observation
 from seek_job.engine import Session
 from seek_job.storage import Store
@@ -169,6 +169,46 @@ class WorkflowTests(unittest.TestCase):
         mutate(self.root, {"action": "restore", "runId": self.run})
         self.assertEqual(len(dashboard(self.root)["runs"]), 1)
 
+    def test_delete_cv_batch_removes_only_its_artifacts_and_keeps_approval(self):
+        self.review()
+        first = mutate(self.root, self.cv_payload())
+        first_batch = load_json(batch_path(self.root, first["batchId"]))
+        mutate(self.root, {"action": "cv-prepare", "id": first["batchId"]})
+        output = Path(first_batch["outputRoot"])
+        pdf = Path(first_batch["jobs"][0]["outputDir"]) / "Synthetic_CV.pdf"
+        pdf.write_bytes(b"synthetic PDF fixture")
+        mutate(self.root, {"action": "batch-result", "id": first["batchId"], "status": "completed"})
+        mutate(self.root, {"action": "operation-update", "id": first["id"], "status": "completed"})
+        second = mutate(self.root, self.cv_payload())
+        with self.assertRaises(PipelineError):
+            mutate(self.root, {"action": "cv-delete", "id": first["batchId"]})
+        mutate(self.root, {"action": "batch-result", "id": second["batchId"], "status": "failed"})
+        mutate(self.root, {"action": "operation-update", "id": second["id"], "status": "failed"})
+        log = self.root / "state/ui/operations" / (first["id"] + ".log")
+        log.write_text("synthetic agent log", encoding="utf-8")
+        result = mutate(self.root, {"action": "cv-delete", "id": first["batchId"]})
+        self.assertEqual(result["deletedBatch"], first["batchId"])
+        self.assertFalse(output.exists())
+        self.assertFalse(batch_path(self.root, first["batchId"]).exists())
+        self.assertFalse(log.exists())
+        self.assertFalse((self.root / "state/ui/operations" / (first["id"] + ".json")).exists())
+        self.assertTrue(batch_path(self.root, second["batchId"]).exists())
+        self.assertEqual(detail(self.root, self.run)["jobs"][0]["review"]["status"], "approved")
+
+    def test_delete_cv_batch_rejects_tampered_output_path(self):
+        self.review()
+        op = mutate(self.root, self.cv_payload())
+        mutate(self.root, {"action": "batch-result", "id": op["batchId"], "status": "failed"})
+        mutate(self.root, {"action": "operation-update", "id": op["id"], "status": "failed"})
+        path = batch_path(self.root, op["batchId"])
+        batch = load_json(path)
+        batch["outputRoot"] = str(self.cv / "profile")
+        atomic_json(path, batch)
+        with self.assertRaises(PipelineError):
+            mutate(self.root, {"action": "cv-delete", "id": op["batchId"]})
+        self.assertTrue((self.cv / "profile/personal.md").exists())
+        self.assertTrue(path.exists())
+
     def test_path_traversal_rejected(self):
         for run in ("../config", "..", "runs/anything"):
             with self.assertRaises(PipelineError):
@@ -306,11 +346,21 @@ class WorkflowTests(unittest.TestCase):
         try:
             state = json.load(urlopen(base + "/api/state"))
             self.assertEqual(len(state["runs"]), 1)
+            self.assertEqual(state["agent"]["model"], "gpt-5.6-sol")
             self.assertIn(b"YOUR CAREER WORKSPACE", urlopen(base).read())
             data = json.dumps({"action": "delete", "runId": self.run}).encode()
             with self.assertRaises(HTTPError) as ctx:
                 urlopen(Request(base + "/api/action", data=data, headers={"Origin": "https://attacker.example"}))
             self.assertEqual(ctx.exception.code, 403)
+            self.review()
+            op = mutate(self.root, self.cv_payload())
+            mutate(self.root, {"action": "batch-result", "id": op["batchId"], "status": "failed"})
+            mutate(self.root, {"action": "operation-update", "id": op["id"], "status": "failed"})
+            delete_cv = json.dumps({"action": "cv-delete", "id": op["batchId"]}).encode()
+            cv_request = Request(base + "/api/action", data=delete_cv,
+                                 headers={"Origin": base, "X-CSRF-Token": state["csrf"], "Content-Type": "application/json"})
+            self.assertEqual(json.load(urlopen(cv_request))["deletedBatch"], op["batchId"])
+            self.assertEqual(json.load(urlopen(base + "/api/state"))["batches"], [])
             request = Request(base + "/api/action", data=data,
                               headers={"Origin": base, "X-CSRF-Token": state["csrf"], "Content-Type": "application/json"})
             self.assertEqual(json.load(urlopen(request))["deleted"], self.run)

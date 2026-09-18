@@ -109,7 +109,7 @@ function importDialog(job){
 function nowISO(){return new Date().toISOString();}
 function renderCV(){
  $('#main').innerHTML=heading('APPROVED JOBS → TAILORED CVS','Thư viện CV','Các batch độc lập, dùng JD đã duyệt và profile đã xác nhận.')+operationBanner()+
- (state.data.batches.length?'<div class="cv-grid">'+[...state.data.batches].reverse().map(b=>'<section class="panel cv-card"><div class="detail-top"><h2>'+esc(b.profileName)+'</h2>'+badge(b.status)+'</div><p>'+date(b.createdAt)+' · '+esc(b.template)+'<br>'+b.jobs.length+' jobs · Run '+esc(b.runId.slice(-6))+'</p>'+b.jobs.map(j=>{const r=b.results.find(r=>r.jobId===j.jobId);return '<div class="cv-file"><div><strong>'+esc(j.company)+'</strong><p>'+esc(j.jobTitle)+'</p></div><div>'+(r?.pdfs?.length?r.pdfs.map(p=>'<a target="_blank" rel="noopener" href="/api/pdf?batch='+b.id+'&job='+j.jobId+'&name='+encodeURIComponent(p)+'">Mở PDF ↗</a>').join(' '):badge(r?.status||b.status))+'</div></div>';}).join('')+btn('Xem log','batch-log','','data-id="'+b.id+'"')+'</section>').join('')+'</div>':'<section class="panel empty"><div class="empty-icon">▤</div><h3>CV của bạn sẽ xuất hiện ở đây</h3><p>Mở một run, duyệt các job phù hợp rồi chọn “Tạo CV”.</p>'+btn('Về lịch sử run','back','primary')+'</section>');
+ (state.data.batches.length?'<div class="cv-grid">'+[...state.data.batches].reverse().map(b=>'<section class="panel cv-card"><div class="detail-top"><h2>'+esc(b.profileName)+'</h2><div class="tools">'+badge(b.status)+btn('Xóa batch','delete-cv','quiet danger','data-id="'+esc(b.id)+'" '+(active()?'disabled':''))+'</div></div><p>'+date(b.createdAt)+' · '+esc(b.template)+'<br>'+b.jobs.length+' jobs · Run '+esc(b.runId.slice(-6))+'</p>'+b.jobs.map(j=>{const r=b.results.find(r=>r.jobId===j.jobId);return '<div class="cv-file"><div><strong>'+esc(j.company)+'</strong><p>'+esc(j.jobTitle)+'</p></div><div>'+(r?.pdfs?.length?r.pdfs.map(p=>'<a target="_blank" rel="noopener" href="/api/pdf?batch='+b.id+'&job='+j.jobId+'&name='+encodeURIComponent(p)+'">Mở PDF ↗</a>').join(' '):badge(r?.status||b.status))+'</div></div>';}).join('')+btn('Xem log','batch-log','','data-id="'+b.id+'"')+'</section>').join('')+'</div>':'<section class="panel empty"><div class="empty-icon">▤</div><h3>CV của bạn sẽ xuất hiện ở đây</h3><p>Mở một run, duyệt các job phù hợp rồi chọn “Tạo CV”.</p>'+btn('Về lịch sử run','back','primary')+'</section>');
 }
 function renderTrash(){
  $('#main').innerHTML=heading('WORKSPACE HISTORY','Thùng rác','Khôi phục run đã xóa. Job dùng chung và các CV đã tạo vẫn được giữ.')+'<section class="panel">'+(state.data.trash.length?'<table><thead><tr><th>Run</th><th>Ngày chạy</th><th></th></tr></thead><tbody>'+state.data.trash.map(r=>'<tr><td><strong>'+esc(summaryLabel(r.label))+'</strong><small>'+r.id+'</small></td><td>'+date(r.startedAt)+'</td><td>'+btn('Khôi phục','restore','','data-id="'+r.id+'"')+'</td></tr>').join('')+'</tbody></table>':'<div class="empty"><h3>Thùng rác trống</h3><p>Các run bị xóa sẽ được chuyển vào đây.</p></div>')+'</section>';
@@ -117,7 +117,7 @@ function renderTrash(){
 function render(){
  if(!state.data)return;
  $('#run-count').textContent=state.data.runs.length;$('#trash-count').textContent=state.data.trash.length;$('#cv-count').textContent=state.data.batches.length;
- $('#runner-status').textContent=active()?'Pipeline đang chạy':state.data.capabilities.codex?'Codex CLI sẵn sàng':'Chưa tìm thấy Codex CLI';
+ $('#runner-status').textContent=active()?'Pipeline đang chạy':!state.data.agent?'Server UI cần khởi động lại':state.data.capabilities.codex?'Codex CLI sẵn sàng':'Chưa tìm thấy Codex CLI';
  $('#breadcrumb').textContent={runs:'Pipeline & lịch sử',review:'Review & approval',cv:'Thư viện CV',trash:'Thùng rác'}[state.view];
  document.querySelectorAll('[data-view]').forEach(n=>n.classList.toggle('active',n.dataset.view===(state.view==='review'?'runs':state.view)));
  if(state.view==='runs')renderRuns();if(state.view==='review')renderReview();if(state.view==='cv')renderCV();if(state.view==='trash')renderTrash();
@@ -128,6 +128,7 @@ async function refresh(redraw=true){
  if(redraw)render();
 }
 async function queue(kind,extra={}){
+ if(kind!=='collect'&&!state.data.agent)throw Error('Server UI chưa nạp cấu hình model mới. Hãy khởi động lại server trước khi chạy agent.');
  await api('/api/action',{action:'queue',kind,runId:state.run?.checkpoint.runId,...extra});close();toast('Đã bắt đầu pipeline.');await refresh();
 }
 async function logDialog(id){
@@ -156,6 +157,8 @@ document.addEventListener('click',async e=>{
  if(a==='start-cv'){if(!$('#confirm-profile').checked)throw Error('Xác nhận đúng profile ứng viên trước khi tạo CV.');const p=state.run.cv.profiles.find(p=>p.path===$('#cv-profile').value);return await queue('cv',{jobIds:state.cvJobs,profile:p.path,confirmedName:p.name,template:$('#cv-template').value});}
  if(a==='delete-run'){state.deleteId=id;return modal('Xóa run khỏi lịch sử?','<p>Run <strong>'+esc(id)+'</strong> sẽ được đưa vào thùng rác. Bạn có thể khôi phục sau. Các job dùng chung và CV đã tạo được giữ lại.</p>',btn('Chuyển vào thùng rác','confirm-delete','danger'));}
  if(a==='confirm-delete'){await api('/api/action',{action:'delete',runId:state.deleteId});close();toast('Đã chuyển run vào thùng rác.');return await refresh();}
+ if(a==='delete-cv'){const batch=state.data.batches.find(b=>b.id===id);if(!batch)return;state.deleteBatchId=id;return modal('Xóa batch CV?','<p>Batch của <strong>'+esc(batch.profileName)+'</strong> ('+batch.jobs.length+' job) sẽ bị xóa vĩnh viễn, gồm PDF, file làm việc và log. Approval của các job vẫn được giữ.</p>',btn('Xóa batch CV','confirm-delete-cv','danger'));}
+ if(a==='confirm-delete-cv'){await api('/api/action',{action:'cv-delete',id:state.deleteBatchId});close();toast('Đã xóa batch CV.');return await refresh();}
  if(a==='restore'){await api('/api/action',{action:'restore',runId:id});toast('Đã khôi phục run.');return await refresh();}
  if(a==='import'||a==='edit-job')return importDialog(a==='edit-job'?currentJob():null);
  if(a==='save-observation'){
