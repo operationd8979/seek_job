@@ -9,7 +9,8 @@ python -m seek_job ui
 Mở **http://127.0.0.1:8765**. Có thể đổi cổng bằng `--port 8768`.
 UI dùng Python hiện có, không cần npm build hay cài frontend dependencies.
 
-- **Run job search**: chọn Hang, Dung hoặc cấu hình hiện tại. Preset được snapshot
+- **Run job search**: chọn mục tiêu Tester / Frontend, Fullstack / DevOps hoặc
+  cấu hình hiện tại. Preset được snapshot
   cho run mới, không ghi đè `config/search-config.yaml`.
 - **Review**: tìm/lọc job, đọc JD và evidence, mở tin gốc, duyệt/loại từng job
   hoặc nhiều job. Có form nhập URL hoặc dán JD đầy đủ kèm thời gian capture;
@@ -18,15 +19,19 @@ UI dùng Python hiện có, không cần npm build hay cài frontend dependencie
   thì quyết định cũ hết hiệu lực. Job thiếu JD đầy đủ, đã đóng hoặc chưa giải
   quyết trùng lặp không được duyệt tạo CV. Job còn cảnh báo cần xác nhận ngoại
   lệ và lý do; quyết định người dùng không thay đổi kết luận bộ lọc tự động.
+  Quyết định gắn với job trong run, không gắn với từng người.
 - **History**: giữ snapshot kết quả theo run; xóa chuyển vào thùng rác và có
   thể khôi phục. Không xóa job dùng chung hoặc CV đã xuất. Với run cũ chưa có
   snapshot, UI thông báo đang đọc candidate state hiện có và lưu snapshot khi
   review; không thể tái dựng phiên bản JD chưa từng được lưu.
 - **Tạo CV**: chọn các job đã duyệt, profile và template; xác nhận đúng tên
   ứng viên rồi chạy. Nếu không chọn checkbox job, nút dùng tất cả job đã duyệt.
-  Profile mặc định trong workspace `latex_cv` hiện thuộc Hang. Profile bổ sung
-  có thể đặt ở `latex_cv/profiles/<name>/personal.md` và các file profile đi kèm.
-  UI không tạo hay sửa profile.
+  Chọn người tạo CV độc lập với preset tìm việc; cùng một run có thể tạo các
+  batch riêng cho nhiều profile. Hồ sơ nằm ở `latex_cv/profile/<name>/`, gồm
+  `personal.md` và các file profile đi kèm. Mặc định là `profile/hang`;
+  `profile/dung` hiện là bản mẫu cần bổ sung email, điện thoại, bằng chứng và
+  summary được duyệt trước khi tạo CV. UI vẫn đọc cấu trúc flat cũ và
+  `profiles/<name>/` để tương thích. UI không tạo hay sửa profile.
 - **Thư viện CV**: trạng thái từng batch/job, log và PDF đã được kiểm tra.
   Mỗi batch giữ bản JD đã duyệt, hash profile và thư mục output riêng trong
   `latex_cv/applications/seek-job/<batch-id>/<job-id>/` (theo `output_root`).
@@ -124,7 +129,7 @@ company_boards:
 Chỉ thêm board đã xác minh, không dùng placeholder để tìm. Board mới do agent
 tìm được xuất như đề xuất trong ghi chú task; không tự thay config.
 
-Hai preset Hang/Dung nằm trong [storage](storage/README.md). geography.job_cities
+Các preset theo mục tiêu tìm kiếm nằm trong [storage](storage/README.md). geography.job_cities
 giới hạn thành phố, city_aliases khai báo tên tương đương. Không tìm được bằng
 chứng thành phố thì needs_review, không tự pass. allow_international_remote:
 true cho phép job remote ngoài địa điểm mục tiêu, nhưng vẫn kiểm tra remote

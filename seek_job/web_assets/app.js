@@ -20,7 +20,7 @@ function operationBanner(){
 }
 function metric(label,value,note,icon){return '<div class="metric"><div class="metric-label">'+label+'<i>'+icon+'</i></div><div class="metric-value">'+value+'</div><small>'+note+'</small></div>';}
 function flow(step=1){return '<div class="flow">'+[['Tìm kiếm','Chọn preset & khám phá'],['Review JD','Đọc nội dung & bằng chứng'],['Approval','Chọn cơ hội phù hợp'],['Tạo CV','Tailor với latex_cv']].map((s,i)=>'<div class="flow-step '+(i+1===step?'active':'')+'"><b>0'+(i+1)+'</b><div><strong>'+s[0]+'</strong><small>'+s[1]+'</small></div></div>').join('')+'</div>';}
-function summaryLabel(label){return label.includes('hang_')?'Hang':label.includes('dung_')?'Dung':label.replaceAll('_',' ');}
+function summaryLabel(label){return label.replaceAll('_',' ');}
 function renderRuns(){
  const runs=state.data.runs;
  const count=runs.reduce((n,r)=>n+(r.counts.uniqueCandidatesThisRun||0),0);
@@ -68,8 +68,8 @@ function renderJob(){
  if(state.tab==='history')$('#job-tab').innerHTML=state.run.reviewEvents.filter(e=>e.jobId===j.jobId).reverse().map(e=>'<div class="history-line">'+badge(e.status)+'<small>'+date(e.at)+'</small>'+esc(e.note||'Không có ghi chú')+'</div>').join('')||'<p class="muted">Chưa có quyết định duyệt.</p>';
 }
 function newRun(){
- const opts=state.data.presets.map(p=>'<option value="'+p.id+'" '+(p.id==='hang'?'selected':'')+'>'+esc(p.name)+'</option>').join('');
- modal('Bắt đầu một lượt tìm kiếm','<p>Chọn bộ tiêu chí. Tiến độ, kết quả và các nguồn bị chặn sẽ được lưu trong run mới.</p><label class="field">Ứng viên / preset<select id="preset">'+opts+'</select></label><div id="preset-info"></div><div class="notice info">Tìm kiếm dùng Codex CLI đã đăng nhập trên máy này. Bạn có thể theo dõi log và dừng khi cần.</div>',btn('Run job search →','start-search','primary',state.data.capabilities.codex?'':'disabled'));
+ const opts=state.data.presets.map(p=>'<option value="'+p.id+'" '+(p.id==='tester-frontend-hcm'?'selected':'')+'>'+esc(p.name)+'</option>').join('');
+ modal('Bắt đầu một lượt tìm kiếm','<p>Chọn bộ tiêu chí. Tiến độ, kết quả và các nguồn bị chặn sẽ được lưu trong run mới.</p><label class="field">Mục tiêu tìm kiếm<select id="preset">'+opts+'</select></label><div id="preset-info"></div><div class="notice info">Tìm kiếm dùng Codex CLI đã đăng nhập trên máy này. Bạn có thể theo dõi log và dừng khi cần.</div>',btn('Run job search →','start-search','primary',state.data.capabilities.codex?'':'disabled'));
  presetInfo();
 }
 function presetInfo(){const p=state.data.presets.find(p=>p.id===$('#preset').value),c=p.config;$('#preset-info').innerHTML='<div class="preset-info"><h3>'+esc(p.name)+'</h3><p>'+esc(c.search_profiles.flatMap(p=>p.target_roles).join(' · '))+'</p><div class="chips">'+[...(c.geography.job_cities||c.geography.job_countries),...c.work_modes,'Tin trong '+c.freshness.posted_within_days+' ngày'].map(v=>'<span class="badge">'+esc(v)+'</span>').join('')+'</div></div>';}
@@ -89,7 +89,7 @@ function cvDialog(){
  const jobs=state.run.jobs.filter(j=>j.review.status==='approved'&&(!state.selected.size||state.selected.has(j.jobId)));
  if(!jobs.length)return toast('Chọn job đã duyệt trước khi tạo CV.',true);
  state.cvJobs=jobs.map(j=>j.jobId);const cv=state.run.cv;
- modal('Tạo CV cho '+jobs.length+' job','<p>Mỗi job có một CV riêng. Nội dung được tạo từ profile đã chọn và đúng phiên bản JD bạn đã duyệt.</p><label class="field">Profile ứng viên<select id="cv-profile">'+cv.profiles.map(p=>'<option value="'+esc(p.path)+'">'+esc(p.name)+' · '+esc(p.path)+'</option>').join('')+'</select></label><label class="field">Template<select id="cv-template">'+cv.templates.map(t=>'<option '+(t===cv.defaultTemplate?'selected':'')+'>'+esc(t)+'</option>').join('')+'</select></label><label class="check"><input type="checkbox" id="confirm-profile">Tôi xác nhận profile được chọn thuộc đúng người ứng tuyển.</label><div class="notice info">Chỉ tạo CV. PDF sẽ xuất hiện trong Thư viện CV sau khi qua bước kiểm tra của latex_cv.</div>',
+ modal('Tạo CV cho '+jobs.length+' job','<p>Chọn người tạo CV độc lập với mục tiêu tìm kiếm. Mỗi job có một CV riêng, dùng đúng hồ sơ đã chọn và JD đã duyệt.</p><label class="field">Profile ứng viên<select id="cv-profile">'+cv.profiles.map(p=>'<option value="'+esc(p.path)+'">'+esc(p.name)+' · '+esc(p.path)+'</option>').join('')+'</select></label><label class="field">Template<select id="cv-template">'+cv.templates.map(t=>'<option '+(t===cv.defaultTemplate?'selected':'')+'>'+esc(t)+'</option>').join('')+'</select></label><label class="check"><input type="checkbox" id="confirm-profile">Tôi xác nhận profile được chọn thuộc đúng người ứng tuyển.</label><div class="notice info">Chỉ tạo CV. PDF sẽ xuất hiện trong Thư viện CV sau khi qua bước kiểm tra của latex_cv.</div>',
  btn('Tạo '+jobs.length+' CV →','start-cv','primary',!cv.profiles.length||active()?'disabled':''));
 }
 function importDialog(job){
@@ -178,6 +178,7 @@ document.addEventListener('click',async e=>{
 });
 document.addEventListener('change',e=>{
  if(e.target.id==='preset')presetInfo();
+ if(e.target.id==='cv-profile')$('#confirm-profile').checked=false;
  if(e.target.id==='job-filter'){state.filter=e.target.value;renderJobs();}
  if(e.target.dataset.select){const id=e.target.dataset.select;if(e.target.checked)state.selected.add(id);else state.selected.delete(id);renderSelection();}
 });

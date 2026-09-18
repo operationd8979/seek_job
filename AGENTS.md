@@ -78,7 +78,7 @@ pass. Public adapters use mocked fixtures in tests. No delegation is required.
 - `python -m seek_job ui` serves the local web dashboard. `ui-action --input
   inbox/<file>.json` is the mutation boundary for reviews, operation metadata,
   trash/restore and explicitly approved CV batches. Do not edit these files manually.
-- `start --config storage/search-config-hang.yaml` snapshots a preset without
+- `start --config storage/search-config-tester-frontend-hcm.yaml` snapshots a preset without
   changing the active config. Never infer browser capability from the UI.
 - A user clicking Generate CV explicitly authorizes a separate CV phase using
   that batch's approved JD snapshots and confirmed profile. Search itself never

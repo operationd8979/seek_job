@@ -1,9 +1,9 @@
-# Preset: Hang. Paths resolve from seek_job root, not storage/.
+# Search goal: tester-frontend-hcm. Paths resolve from seek_job root, not storage/.
 # Skills are preferences, not an all-skills-required filter. Move confirmed must-haves to must_have_skills.
 # "internal" is interpreted as intern/internship. Target: tester/frontend at HCM.
 schema_version: 1
 search_profiles:
-- id: hang_tester
+- id: tester
   target_roles:
   - Tester
   - QA Tester
@@ -22,7 +22,7 @@ search_profiles:
   - React
   - Angular
   - .NET
-- id: hang_frontend
+- id: frontend
   target_roles:
   - Frontend Developer
   - Front End Developer
@@ -143,7 +143,7 @@ limits:
   retry_backoff_seconds: 5
   min_request_interval_seconds: 2
   candidate_retry_after_hours: 24
-# CV handoff is off until workspace points to the correct person's CV profile.
+# CV selection happens separately in the UI; search does not select a candidate.
 cv_handoff:
   enabled: false
   workspace: ../latex_cv
@@ -152,6 +152,7 @@ cv_handoff:
   allowed_availability_statuses:
   - open
   profile_gap_check: false
+# Legacy storage namespace preserves existing history and dedup; it does not select a CV profile.
 output:
   jobs_directory: jobs/hang
   runs_directory: runs/hang

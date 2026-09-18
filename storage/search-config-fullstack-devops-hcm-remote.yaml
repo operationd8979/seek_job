@@ -1,10 +1,10 @@
-# Preset: Dung. Paths resolve from seek_job root, not storage/.
+# Search goal: fullstack-devops-hcm-remote. Paths resolve from seek_job root, not storage/.
 # Skills are preferences, not an all-skills-required filter. Move confirmed must-haves to must_have_skills.
 # Target: HCM OR international remote that permits working from Vietnam.
 # Docker/Kubernetes/CI-CD/Terraform are optional DevOps suggestions for the supplied "...".
 schema_version: 1
 search_profiles:
-- id: dung_fullstack
+- id: fullstack
   target_roles:
   - Full Stack Developer
   - Full Stack Engineer
@@ -22,7 +22,7 @@ search_profiles:
   - Azure
   - Cloud
   - Microservices
-- id: dung_devops
+- id: devops
   target_roles:
   - DevOps Engineer
   - DevOps Developer
@@ -156,7 +156,7 @@ limits:
   retry_backoff_seconds: 5
   min_request_interval_seconds: 2
   candidate_retry_after_hours: 24
-# CV handoff is off until workspace points to the correct person's CV profile.
+# CV selection happens separately in the UI; search does not select a candidate.
 cv_handoff:
   enabled: false
   workspace: ../latex_cv
@@ -165,6 +165,7 @@ cv_handoff:
   allowed_availability_statuses:
   - open
   profile_gap_check: false
+# Legacy storage namespace preserves existing history and dedup; it does not select a CV profile.
 output:
   jobs_directory: jobs/dung
   runs_directory: runs/dung

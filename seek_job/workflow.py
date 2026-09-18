@@ -22,7 +22,10 @@ def presets(root):
         try:
             config, _ = load_config(root, path)
             key = "current" if path.parent.name == "config" else path.stem.removeprefix("search-config-")
-            result.append({"id": key, "name": {"current": "Cấu hình hiện tại", "hang": "Hang", "dung": "Dung"}.get(key, key),
+            name = {"current": "Cấu hình hiện tại",
+                    "tester-frontend-hcm": "Tester / Frontend · Intern–Junior · TP.HCM",
+                    "fullstack-devops-hcm-remote": "Fullstack / DevOps · Middle–Senior · HCM / Remote quốc tế"}.get(key, key)
+            result.append({"id": key, "name": name,
                            "path": path.relative_to(root).as_posix(), "config": config})
         except (PipelineError, OSError):
             continue
@@ -127,7 +130,9 @@ def profile_options(root, config):
         return {"workspace": str(workspace), "profiles": [], "templates": [], "error": "Không tìm thấy CV config."}
     cv = yaml_read(path.read_text(encoding="utf-8-sig"))
     default = inside(workspace, path.parent / cv["profile_root"])
-    dirs = [default, *sorted((workspace / "profiles").glob("*"))]
+    # Keep legacy flat profiles and profiles/<name> discoverable too.
+    dirs = [default, *sorted((workspace / "profile").glob("*")),
+            *sorted((workspace / "profiles").glob("*"))]
     result = []
     for folder in dict.fromkeys(dirs):
         file = folder / "personal.md"
@@ -150,7 +155,7 @@ def list_runs(root, trash=False):
         cp = load_json(path)
         config, _ = load_config(root, path.parent / "config.snapshot.yaml")
         results = load_json(path.parent / "results.json", {})
-        label = " / ".join(p["id"] for p in config["search_profiles"])
+        label = " / ".join(p["target_roles"][0] for p in config["search_profiles"])
         reviews = load_json(path.parent / "reviews.json", {"decisions": {}})
         snapshot = path.parent / "candidates.snapshot.json"
         records = load_json(snapshot if snapshot.exists() else inside(root, config["output"]["candidates_file"]),

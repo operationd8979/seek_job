@@ -72,6 +72,41 @@ class WorkflowTests(unittest.TestCase):
             mutate(self.root, dict(self.cv_payload(), confirmedName="Someone else"))
         self.assertFalse(operations(self.root))
 
+    def test_named_profiles_share_job_approval_but_pin_separate_candidates(self):
+        # Exercise migration from a flat default to profile/<name>.
+        first = self.cv / "profile/hang"
+        second = self.cv / "profile/dung"
+        first.mkdir()
+        second.mkdir()
+        (self.cv / "profile/personal.md").rename(first / "personal.md")
+        (second / "personal.md").write_text("- **Full name:** Synthetic Dung\n", encoding="utf-8")
+        (self.cv / "cv.config.yaml").write_text(
+            "profile_root: profile/hang\ntemplate_root: templates\noutput_root: applications\n", encoding="utf-8")
+        profiles = detail(self.root, self.run)["cv"]["profiles"]
+        self.assertEqual([p["path"] for p in profiles], ["profile/hang", "profile/dung"])
+        self.review()
+        decisions = detail(self.root, self.run)["reviewEvents"]
+        batches = []
+        for profile, name in (("profile/hang", "Synthetic Hang"), ("profile/dung", "Synthetic Dung")):
+            op = mutate(self.root, dict(self.cv_payload(), profile=profile, confirmedName=name))
+            batch = load_json(batch_path(self.root, op["batchId"]))
+            self.assertEqual(batch["profile"], profile)
+            self.assertEqual(batch["profileName"], name)
+            self.assertIn(profile, cv_prompt(batch))
+            batches.append(batch)
+            mutate(self.root, dict(action="operation-update", id=op["id"], status="cancelled"))
+        self.assertNotEqual(batches[0]["profileHash"], batches[1]["profileHash"])
+        self.assertNotEqual(batches[0]["jobs"][0]["outputDir"], batches[1]["jobs"][0]["outputDir"])
+        self.assertEqual(batches[0]["jobs"][0]["decision"], batches[1]["jobs"][0]["decision"])
+        self.assertEqual(detail(self.root, self.run)["reviewEvents"], decisions)
+
+    def test_legacy_additional_profile_directory_remains_selectable(self):
+        extra = self.cv / "profiles/other"
+        extra.mkdir(parents=True)
+        (extra / "personal.md").write_text("- **Full name:** Synthetic Other\n", encoding="utf-8")
+        self.assertEqual({p["path"] for p in detail(self.root, self.run)["cv"]["profiles"]},
+                         {"profile", "profiles/other"})
+
     def test_missing_jd_cannot_be_approved_even_with_override(self):
         with Store(self.root, self.config).locked():
             s = Session(self.root, self.run)
@@ -148,14 +183,14 @@ class WorkflowTests(unittest.TestCase):
         self.review()
 
     def test_preset_start_does_not_modify_active_config(self):
-        path = self.root / "storage/search-config-hang.yaml"
+        path = self.root / "storage/search-config-tester-frontend-hcm.yaml"
         path.parent.mkdir()
         config = copy.deepcopy(self.config)
-        config["search_profiles"][0]["id"] = "hang_tester"
+        config["search_profiles"][0]["id"] = "tester"
         path.write_text(yaml.safe_dump(config), encoding="utf-8")
         before = (self.root / "config/search-config.yaml").read_bytes()
-        op = mutate(self.root, {"action": "queue", "kind": "search", "preset": "hang"})
-        self.assertEqual(detail(self.root, op["runId"])["config"]["search_profiles"][0]["id"], "hang_tester")
+        op = mutate(self.root, {"action": "queue", "kind": "search", "preset": "tester-frontend-hcm"})
+        self.assertEqual(detail(self.root, op["runId"])["config"]["search_profiles"][0]["id"], "tester")
         self.assertEqual(before, (self.root / "config/search-config.yaml").read_bytes())
         self.assertFalse(detail(self.root, op["runId"])["checkpoint"]["capabilities"]["webSearch"])
 
