@@ -10,6 +10,7 @@ from urllib.error import HTTPError
 
 import yaml
 
+from seek_job.agent_config import load_agent_config
 from seek_job.common import PipelineError, load_config, load_json
 from seek_job.dryrun import fixture_root, synthetic_observation
 from seek_job.engine import Session
@@ -209,10 +210,30 @@ class WorkflowTests(unittest.TestCase):
     def test_command_uses_argv_and_sandbox(self):
         with patch("shutil.which", return_value="codex.exe"):
             args = command(self.root, True)
+            cv_args = command(self.cv)
         self.assertIn("--search", args)
+        self.assertNotIn("--search", cv_args)
+        for invocation in (args, cv_args):
+            self.assertEqual(invocation[invocation.index("-m") + 1], "gpt-5.6-sol")
+            self.assertIn('model_reasoning_effort="medium"', invocation)
         self.assertIn("workspace-write", args)
         self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", args)
         self.assertEqual(args[-1], "-")
+
+    def test_agent_config_controls_search_and_cv_and_rejects_invalid_values(self):
+        path = self.root / "config/agent-config.yaml"
+        path.write_text("model: gpt-5.6-terra\nreasoning_effort: low\n", encoding="utf-8")
+        settings = load_agent_config(self.root)
+        with patch("shutil.which", return_value="codex.exe"):
+            search = command(self.root, True, settings)
+            cv = command(self.cv, agent_config=settings)
+        for invocation in (search, cv):
+            self.assertEqual(invocation[invocation.index("-m") + 1], "gpt-5.6-terra")
+            self.assertIn('model_reasoning_effort="low"', invocation)
+        self.assertEqual(dashboard(self.root)["agent"], settings)
+        path.write_text("model: [invalid]\nreasoning_effort: low\n", encoding="utf-8")
+        with self.assertRaises(PipelineError):
+            load_agent_config(self.root)
 
     def test_failed_runner_is_recorded_and_releases_slot(self):
         op = mutate(self.root, {"action": "queue", "kind": "collect", "runId": self.run})
@@ -224,6 +245,20 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(saved["status"], "failed")
         self.assertIn("17", saved["error"])
         self.assertIsNone(runner.process)
+
+    def test_failed_cv_agent_marks_batch_failed_without_rendering(self):
+        self.review()
+        op = mutate(self.root, self.cv_payload())
+        runner = Runner(self.root)
+        with patch("seek_job.web.action", side_effect=lambda root, data: mutate(root, data)), \
+             patch.object(runner, "execute", return_value=17) as execute:
+            runner.work(op)
+        saved = operations(self.root)[0]
+        batch = load_json(batch_path(self.root, op["batchId"]))
+        self.assertEqual(saved["status"], "failed")
+        self.assertIn("17", saved["error"])
+        self.assertEqual(batch["status"], "failed")
+        self.assertEqual(execute.call_count, 1)
 
     def test_cv_worker_verifies_render_and_build_before_publishing(self):
         self.review()

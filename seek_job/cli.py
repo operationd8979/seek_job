@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from .agent_config import load_agent_config
 from .common import PipelineError, atomic_json, load_config, load_json
 from .engine import Session, find_run
 from .handoff import validate_manifest
@@ -88,7 +89,8 @@ def run(args):
     if args.command == "validate":
         from .handoff import cv_context
         context = cv_context(root, config)
-        return {"valid": True, "cvHandoff": context["status"], "notes": context["notes"]}
+        return {"valid": True, "cvHandoff": context["status"], "agent": load_agent_config(root),
+                "notes": context["notes"]}
     if args.command == "validate-handoff":
         return {"validJobIds": validate_manifest(root, args.manifest, args.job_id, not args.skip_cv_workspace),
                 "cvExecuted": False}

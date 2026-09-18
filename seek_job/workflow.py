@@ -7,6 +7,7 @@ import shutil
 import uuid
 from pathlib import Path
 
+from .agent_config import load_agent_config
 from .common import (PipelineError, age_hours, atomic_json, atomic_text, digest, inside, json_text,
                      load_config, load_json, now, canonical, yaml_read)
 from .engine import Session, find_run
@@ -174,6 +175,7 @@ def dashboard(root):
     return {"runs": list_runs(root), "trash": list_runs(root, True),
             "presets": presets(root), "operations": operations(root),
             "batches": [load_json(p) for p in sorted((root / "state/ui/batches").glob("*.json"))],
+            "agent": load_agent_config(root),
             "capabilities": {"codex": bool(shutil.which("codex")), "browser": False}}
 
 

@@ -16,6 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from .agent_config import load_agent_config
 from .common import PipelineError, atomic_json, inside, load_json, now
 from .workflow import (ACTIVE, batch_path, dashboard, detail, operation_path,
                        operations, profile_hash)
@@ -79,11 +80,13 @@ def action(root, data):
     return cli(root, ["ui-action", "--input", str(path)])
 
 
-def command(cwd, search=False):
+def command(cwd, search=False, agent_config=None):
     executable = shutil.which("codex")
     if not executable:
         raise PipelineError("Không tìm thấy Codex CLI. Cài CLI và đăng nhập bằng codex login.")
-    args = [executable, "-a", "never"]
+    settings = agent_config or load_agent_config(Path(__file__).parent.parent)
+    args = [executable, "-a", "never", "-m", settings["model"],
+            "-c", f'model_reasoning_effort="{settings["reasoning_effort"]}"']
     if search:
         args += ["--search"]
     return args + ["exec", "--sandbox", "workspace-write", "-c", "sandbox_workspace_write.network_access=true",
@@ -188,7 +191,10 @@ class Runner:
                 if op["kind"] == "cv":
                     batch = load_json(batch_path(self.root, op["batchId"]))
                     action(self.root, {"action": "cv-prepare", "id": batch["id"]})
-                    code = self.execute(command(batch["workspace"]), log, cv_prompt(batch), batch["workspace"])
+                    code = self.execute(command(batch["workspace"], agent_config=load_agent_config(self.root)),
+                                        log, cv_prompt(batch), batch["workspace"])
+                    if code:
+                        raise PipelineError(f"Codex tạo CV kết thúc với mã {code}. Xem log để biết nguyên nhân.")
                     results = []
                     for job in batch["jobs"]:
                         out = Path(job["outputDir"])
@@ -227,7 +233,8 @@ class Runner:
                                 "collect", "--run", op["runId"]]
                         code = self.execute(args, log, cwd=Path(__file__).parent.parent)
                     else:
-                        code = self.execute(command(self.root, True), log, search_prompt(self.root, op), self.root)
+                        code = self.execute(command(self.root, True, load_agent_config(self.root)),
+                                            log, search_prompt(self.root, op), self.root)
                     if code:
                         raise PipelineError(f"Tiến trình kết thúc với mã {code}. Xem log để biết nguyên nhân.")
                     finished = cli(self.root, ["finish", "--run", op["runId"]])

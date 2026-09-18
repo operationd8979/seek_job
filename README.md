@@ -47,6 +47,12 @@ Máy cần có **Codex CLI** trong PATH và đã đăng nhập (`codex login`) �
 và viết kế hoạch CV. UI chạy `codex exec --json` bằng argv/stdin, sandbox
 `workspace-write`, live search chỉ bật cho search. Không yêu cầu API key trong
 UI và không đọc/lưu credential. Xem [tài liệu chế độ non-interactive](https://learn.chatgpt.com/docs/non-interactive-mode).
+Đặt model và reasoning chung cho cả tìm job lẫn tạo CV trong
+[`config/agent-config.yaml`](config/agent-config.yaml). Mặc định là
+`gpt-5.6-sol` và `medium`; UI đọc lại file khi bắt đầu mỗi operation, nên
+không cần đổi model mặc định của Codex CLI. `python -m seek_job validate`
+kiểm tra file cấu hình. Nếu agent thoát với mã lỗi, batch CV được đánh dấu
+failed; log giữ thông báo lỗi gốc.
 
 Mỗi workspace chạy một pipeline tại một thời điểm; có log và nút Dừng. Windows
 Job Object dọn cây tiến trình khi server dừng. Sau gián đoạn, run cũ vẫn có thể
