@@ -1,0 +1,128 @@
+{
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "configHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "cvWorkspace": {
+      "type": "string",
+      "minLength": 1
+    },
+    "handoffStatus": {
+      "enum": [
+        "available",
+        "unavailable",
+        "disabled"
+      ]
+    },
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "company": {
+            "type": "string",
+            "minLength": 1
+          },
+          "jobTitle": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "metadataPath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "descriptionPath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "descriptionHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "descriptionStatus": {
+            "const": "complete"
+          },
+          "matchStatus": {
+            "const": "accepted"
+          },
+          "availabilityStatus": {
+            "const": "open"
+          },
+          "availabilityCheckedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "matchedProfileIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "profileGaps": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "jobId",
+          "company",
+          "jobTitle",
+          "sourceUrl",
+          "metadataPath",
+          "descriptionPath",
+          "descriptionHash",
+          "descriptionStatus",
+          "matchStatus",
+          "availabilityStatus",
+          "availabilityCheckedAt",
+          "matchedProfileIds",
+          "profileGaps"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "runId",
+    "generatedAt",
+    "configHash",
+    "cvWorkspace",
+    "handoffStatus",
+    "jobs"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "cv-ready",
+  "$id": "https://seek-job.local/schemas/cv-ready.schema.json"
+}

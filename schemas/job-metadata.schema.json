@@ -1,0 +1,618 @@
+{
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "jobId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "folderPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sourceAliases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tenant": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "sourceJobId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "urls": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "source",
+          "tenant",
+          "sourceJobId",
+          "urls"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "identityStatus": {
+      "enum": [
+        "resolved",
+        "possible_duplicate"
+      ]
+    },
+    "jobTitle": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "company": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "locations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "jobCountries": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z]{2}$"
+      },
+      "uniqueItems": true
+    },
+    "workMode": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "employmentType": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "level": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "salary": {
+      "type": [
+        "object",
+        "string",
+        "null"
+      ]
+    },
+    "discoveredVia": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "seenAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "source",
+          "url",
+          "seenAt"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "sourceUrl": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "canonicalUrl": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "descriptionSource": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "ats_api",
+            "company_page",
+            "public_page",
+            "user_supplied"
+          ]
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "capturedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "method": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "kind",
+        "url",
+        "capturedAt",
+        "method"
+      ],
+      "additionalProperties": false
+    },
+    "remoteScope": {
+      "enum": [
+        "worldwide",
+        "restricted",
+        null
+      ]
+    },
+    "eligibleCountries": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "uniqueItems": true
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "timezoneRequirements": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "timezoneOverlapHours": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 24
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sponsorship": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "authorizationRequired": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "datePosted": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "dateFound": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "lastSeen": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "fetchedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "availabilityCheckedAt": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "evaluatedConfigHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "matchedProfileIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "evaluations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "profileId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "result": {
+                  "enum": [
+                    "pass",
+                    "fail",
+                    "unknown"
+                  ]
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "quote": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "name",
+                "result",
+                "reasonCode",
+                "quote",
+                "source"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 0
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "rejected",
+              "needs_review"
+            ]
+          }
+        },
+        "required": [
+          "profileId",
+          "checks",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "matchedRequiredSkills": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "matchedPreferredSkills": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "matchScore": {
+      "type": "number",
+      "minimum": 0
+    },
+    "scoreBreakdown": {
+      "type": "object"
+    },
+    "descriptionStatus": {
+      "enum": [
+        "complete",
+        "partial",
+        "unavailable"
+      ]
+    },
+    "matchStatus": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "needs_review"
+      ]
+    },
+    "availabilityStatus": {
+      "enum": [
+        "open",
+        "closed",
+        "unknown"
+      ]
+    },
+    "descriptionHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "sourceContentHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "extractorVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "descriptionHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "path",
+          "descriptionHash",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "summary": {
+      "type": "string"
+    },
+    "reviewNotes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "profileGaps": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "minItems": 0
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "completenessEvidence": {
+      "type": "string"
+    },
+    "mergedInto": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "distinctFrom": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "roleMatches": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "enum": [
+              "pass",
+              "fail"
+            ]
+          },
+          "quote": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "result",
+          "quote"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "jobId",
+    "folderPath",
+    "sourceAliases",
+    "identityStatus",
+    "jobTitle",
+    "company",
+    "locations",
+    "jobCountries",
+    "workMode",
+    "employmentType",
+    "level",
+    "salary",
+    "discoveredVia",
+    "sourceUrl",
+    "canonicalUrl",
+    "descriptionSource",
+    "remoteScope",
+    "eligibleCountries",
+    "timezoneRequirements",
+    "timezoneOverlapHours",
+    "sponsorship",
+    "authorizationRequired",
+    "datePosted",
+    "dateFound",
+    "lastSeen",
+    "fetchedAt",
+    "availabilityCheckedAt",
+    "evaluatedConfigHash",
+    "matchedProfileIds",
+    "evaluations",
+    "matchedRequiredSkills",
+    "matchedPreferredSkills",
+    "matchScore",
+    "scoreBreakdown",
+    "descriptionStatus",
+    "matchStatus",
+    "availabilityStatus",
+    "descriptionHash",
+    "sourceContentHash",
+    "extractorVersion",
+    "revisions",
+    "summary",
+    "reviewNotes",
+    "profileGaps",
+    "evidence",
+    "completenessEvidence",
+    "mergedInto",
+    "distinctFrom",
+    "roleMatches"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "matchStatus": {
+            "const": "accepted"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "descriptionStatus": {
+            "const": "complete"
+          },
+          "availabilityStatus": {
+            "const": "open"
+          },
+          "identityStatus": {
+            "const": "resolved"
+          },
+          "jobTitle": {
+            "type": "string",
+            "minLength": 1
+          },
+          "company": {
+            "type": "string",
+            "minLength": 1
+          },
+          "matchedProfileIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "job-metadata",
+  "$id": "https://seek-job.local/schemas/job-metadata.schema.json"
+}

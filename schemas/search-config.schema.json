@@ -1,0 +1,683 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "search_profiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+$"
+          },
+          "target_roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "minItems": 1
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "minItems": 1
+          },
+          "must_have_skills": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "preferred_skills": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "id",
+          "target_roles",
+          "levels",
+          "must_have_skills",
+          "preferred_skills"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "skill_aliases": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      }
+    },
+    "geography": {
+      "type": "object",
+      "properties": {
+        "job_countries": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "work_from_country": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "authorized_work_countries": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "uniqueItems": true
+        },
+        "relocation_allowed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "needs_sponsorship": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "minimum_timezone_overlap_hours": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 24
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work_from_city": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        }
+      },
+      "required": [
+        "job_countries",
+        "work_from_country",
+        "authorized_work_countries",
+        "relocation_allowed",
+        "needs_sponsorship",
+        "minimum_timezone_overlap_hours"
+      ],
+      "additionalProperties": false
+    },
+    "work_modes": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "remote",
+          "hybrid",
+          "on-site"
+        ]
+      },
+      "minItems": 1
+    },
+    "employment_types": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "minItems": 1
+    },
+    "exclusions": {
+      "type": "object",
+      "properties": {
+        "hiring_levels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "unpaid": {
+          "type": "boolean"
+        },
+        "title_keywords": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "hiring_levels",
+        "unpaid",
+        "title_keywords"
+      ],
+      "additionalProperties": false
+    },
+    "freshness": {
+      "type": "object",
+      "properties": {
+        "posted_within_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650
+        },
+        "unknown_date_policy": {
+          "enum": [
+            "needs_review",
+            "reject"
+          ]
+        },
+        "max_availability_age_hours": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 8760
+        }
+      },
+      "required": [
+        "posted_within_days",
+        "unknown_date_policy",
+        "max_availability_age_hours"
+      ],
+      "additionalProperties": false
+    },
+    "matching": {
+      "type": "object",
+      "properties": {
+        "unknown_hard_constraint_policy": {
+          "enum": [
+            "needs_review",
+            "reject"
+          ]
+        },
+        "unknown_required_skill_policy": {
+          "enum": [
+            "needs_review",
+            "reject"
+          ]
+        },
+        "ranking_weights": {
+          "type": "object",
+          "properties": {
+            "preferred_skill_coverage": {
+              "type": "number",
+              "minimum": 0
+            },
+            "freshness": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "preferred_skill_coverage",
+            "freshness"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "unknown_hard_constraint_policy",
+        "unknown_required_skill_policy",
+        "ranking_weights"
+      ],
+      "additionalProperties": false
+    },
+    "sources": {
+      "type": "object",
+      "properties": {
+        "web_search": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "priority": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required_for_coverage": {
+              "type": "boolean"
+            },
+            "mode": {
+              "enum": [
+                "discovery_and_manual"
+              ]
+            }
+          },
+          "required": [
+            "enabled",
+            "priority",
+            "required_for_coverage"
+          ],
+          "additionalProperties": false
+        },
+        "company_career_pages": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "priority": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required_for_coverage": {
+              "type": "boolean"
+            },
+            "mode": {
+              "enum": [
+                "discovery_and_manual"
+              ]
+            }
+          },
+          "required": [
+            "enabled",
+            "priority",
+            "required_for_coverage"
+          ],
+          "additionalProperties": false
+        },
+        "greenhouse": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "priority": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required_for_coverage": {
+              "type": "boolean"
+            },
+            "mode": {
+              "enum": [
+                "discovery_and_manual"
+              ]
+            }
+          },
+          "required": [
+            "enabled",
+            "priority",
+            "required_for_coverage"
+          ],
+          "additionalProperties": false
+        },
+        "lever": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "priority": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required_for_coverage": {
+              "type": "boolean"
+            },
+            "mode": {
+              "enum": [
+                "discovery_and_manual"
+              ]
+            }
+          },
+          "required": [
+            "enabled",
+            "priority",
+            "required_for_coverage"
+          ],
+          "additionalProperties": false
+        },
+        "workday": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "priority": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required_for_coverage": {
+              "type": "boolean"
+            },
+            "mode": {
+              "enum": [
+                "discovery_and_manual"
+              ]
+            }
+          },
+          "required": [
+            "enabled",
+            "priority",
+            "required_for_coverage"
+          ],
+          "additionalProperties": false
+        },
+        "linkedin": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "priority": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required_for_coverage": {
+              "type": "boolean"
+            },
+            "mode": {
+              "enum": [
+                "discovery_and_manual"
+              ]
+            }
+          },
+          "required": [
+            "enabled",
+            "priority",
+            "required_for_coverage"
+          ],
+          "additionalProperties": false
+        },
+        "other_public_sources": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "priority": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required_for_coverage": {
+              "type": "boolean"
+            },
+            "mode": {
+              "enum": [
+                "discovery_and_manual"
+              ]
+            }
+          },
+          "required": [
+            "enabled",
+            "priority",
+            "required_for_coverage"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "web_search",
+        "company_career_pages",
+        "greenhouse",
+        "lever",
+        "workday",
+        "linkedin",
+        "other_public_sources"
+      ],
+      "additionalProperties": false
+    },
+    "company_boards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "enum": [
+              "greenhouse",
+              "lever"
+            ]
+          },
+          "company": {
+            "type": "string",
+            "minLength": 1
+          },
+          "board": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "region": {
+            "enum": [
+              "global",
+              "eu"
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "company",
+          "board"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "browser": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "if_available",
+            "disabled"
+          ]
+        },
+        "on_auth_required": {
+          "enum": [
+            "checkpoint_and_continue_other_sources"
+          ]
+        }
+      },
+      "required": [
+        "mode",
+        "on_auth_required"
+      ],
+      "additionalProperties": false
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "max_queries_per_source": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "max_pages_per_source": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "max_candidates_per_source": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "max_accepted_jobs_per_run": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "max_run_minutes": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 1440
+        },
+        "request_timeout_seconds": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 120
+        },
+        "max_retries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "retry_backoff_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 60
+        },
+        "min_request_interval_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 60
+        },
+        "candidate_retry_after_hours": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 8760
+        }
+      },
+      "required": [
+        "max_queries_per_source",
+        "max_pages_per_source",
+        "max_candidates_per_source",
+        "max_accepted_jobs_per_run",
+        "max_run_minutes",
+        "request_timeout_seconds",
+        "max_retries",
+        "retry_backoff_seconds",
+        "min_request_interval_seconds",
+        "candidate_retry_after_hours"
+      ],
+      "additionalProperties": false
+    },
+    "cv_handoff": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "workspace": {
+          "type": "string",
+          "minLength": 1
+        },
+        "config_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skill_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allowed_availability_statuses": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "open"
+            ]
+          },
+          "minItems": 1
+        },
+        "profile_gap_check": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "enabled",
+        "workspace",
+        "config_file",
+        "skill_file",
+        "allowed_availability_statuses",
+        "profile_gap_check"
+      ],
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "jobs_directory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runs_directory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "candidates_file": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "jobs_directory",
+        "runs_directory",
+        "state_file",
+        "candidates_file"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "search_profiles",
+    "skill_aliases",
+    "geography",
+    "work_modes",
+    "employment_types",
+    "exclusions",
+    "freshness",
+    "matching",
+    "sources",
+    "company_boards",
+    "browser",
+    "limits",
+    "cv_handoff",
+    "output"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "search-config",
+  "$id": "https://seek-job.local/schemas/search-config.schema.json"
+}

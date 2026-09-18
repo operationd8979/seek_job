@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+artifacts/
+state/*.lock
+state/staging/*
+!state/staging/.gitkeep
+state/*.backup-*
+# Local search results may contain personal preferences. Keep them local by default.
+jobs/*
+!jobs/.gitkeep
+runs/*
+!runs/.gitkeep
+state/jobs-index.json
+state/candidates.json
+inbox/

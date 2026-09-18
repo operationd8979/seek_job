@@ -1,0 +1,355 @@
+{
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "source": {
+      "enum": [
+        "web_search",
+        "company_career_pages",
+        "greenhouse",
+        "lever",
+        "workday",
+        "linkedin",
+        "other_public_sources",
+        "manual"
+      ]
+    },
+    "jobId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "url": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "tenant": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "sourceJobId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "jobTitle": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "company": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "descriptionFile": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sourceContent": {
+      "type": "string"
+    },
+    "sourceContentFile": {
+      "type": "string",
+      "minLength": 1
+    },
+    "descriptionStatus": {
+      "enum": [
+        "complete",
+        "partial",
+        "unavailable"
+      ]
+    },
+    "descriptionKind": {
+      "enum": [
+        "ats_api",
+        "company_page",
+        "public_page",
+        "user_supplied"
+      ]
+    },
+    "completenessEvidence": {
+      "type": "string"
+    },
+    "capturedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "availabilityStatus": {
+      "enum": [
+        "open",
+        "closed",
+        "unknown"
+      ]
+    },
+    "availabilityCheckedAt": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "facts": {
+      "type": "object",
+      "properties": {
+        "locations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "jobCountries": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "uniqueItems": true
+        },
+        "workMode": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "employmentType": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "level": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "salary": {
+          "type": [
+            "object",
+            "string",
+            "null"
+          ]
+        },
+        "remoteScope": {
+          "enum": [
+            "worldwide",
+            "restricted",
+            null
+          ]
+        },
+        "eligibleCountries": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z]{2}$"
+              },
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timezoneRequirements": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "timezoneOverlapHours": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 24
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sponsorship": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "authorizationRequired": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "datePosted": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "summary": {
+      "type": "string"
+    },
+    "reviewNotes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "blockedReason": {
+      "enum": [
+        "auth_required",
+        "captcha",
+        "rate_limited",
+        "fetch_failed",
+        "browser_required",
+        "not_found"
+      ]
+    },
+    "canonicalUrl": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "linkedAliases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "alias": {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "minLength": 1
+              },
+              "tenant": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1
+              },
+              "sourceJobId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1
+              },
+              "urls": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "source",
+              "tenant",
+              "sourceJobId",
+              "urls"
+            ],
+            "additionalProperties": false
+          },
+          "quote": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "alias",
+          "quote"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "roleMatches": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "enum": [
+              "pass",
+              "fail"
+            ]
+          },
+          "quote": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "result",
+          "quote"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "source",
+    "url"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "observation",
+  "$id": "https://seek-job.local/schemas/observation.schema.json"
+}
