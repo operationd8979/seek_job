@@ -327,8 +327,10 @@ class WorkflowTests(unittest.TestCase):
         def fake_execute(args, log, prompt=None, cwd=None):
             calls.append(args)
             if args == ["synthetic-agent"]:
-                (out / "raw/plan.json").write_text('{"template":"ats-single-column"}', encoding="utf-8")
+                (out / "raw/plan.json").write_text(json.dumps({"template": "ats-single-column",
+                    "job": {"title": batch["jobs"][0]["jobTitle"]}}), encoding="utf-8")
             elif "render_cv.py" in args[1]:
+                self.assertEqual(args[args.index("--job-title") + 1], batch["jobs"][0]["jobTitle"])
                 (out / "raw/cv.tex").write_text("SYNTHETIC ONLY", encoding="utf-8")
             elif "build_and_validate.py" in args[1]:
                 self.assertNotIn("--max-pages", args)
@@ -343,6 +345,31 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(len(calls), 3)
         self.assertTrue(result["results"][0]["pdfHashes"])
         self.assertEqual((out / "raw/job.md").read_text(encoding="utf-8").split("\n\n", 1)[1], batch["jobs"][0]["description"])
+
+    def test_cv_worker_uses_approved_title_even_if_plan_shortens_it(self):
+        self.review()
+        op = mutate(self.root, self.cv_payload())
+        batch = load_json(batch_path(self.root, op["batchId"]))
+        out = Path(batch["jobs"][0]["outputDir"])
+        runner = Runner(self.root)
+        def fake_execute(args, log, prompt=None, cwd=None):
+            if args == ["synthetic-agent"]:
+                (out / "raw/plan.json").write_text(json.dumps({
+                    "template": "ats-single-column", "job": {"title": "Shortened title"}
+                }), encoding="utf-8")
+            elif "render_cv.py" in args[1]:
+                self.assertEqual(args[args.index("--job-title") + 1], batch["jobs"][0]["jobTitle"])
+                (out / "raw/cv.tex").write_text("SYNTHETIC ONLY", encoding="utf-8")
+            elif "build_and_validate.py" in args[1]:
+                (out / "Synthetic_CV.pdf").write_bytes(b"%PDF SYNTHETIC TEST ONLY")
+            return 0
+        with patch("seek_job.web.action", side_effect=lambda root, data: mutate(root, data)), \
+             patch("seek_job.web.command", return_value=["synthetic-agent"]), \
+             patch.object(runner, "execute", side_effect=fake_execute) as execute:
+            runner.work(op)
+        result = load_json(batch_path(self.root, batch["id"]))
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(execute.call_count, 3)
 
     def test_process_tree_is_reaped_without_agent(self):
         from seek_job.web import ProcessTree

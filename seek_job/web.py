@@ -147,6 +147,12 @@ CV only, English, with no page limit. No cover letter. Process each job independ
 Include at least two distinct projects from this profile, leading with the closest matches.
 If fewer than two match directly, use the strongest transferable projects and describe their
 actual work honestly. If the profile contains fewer than two, report the missing evidence.
+Set plan.job.title to the approved posting's job title and set plan.headline to exactly one
+target role matching that job. For a Frontend Developer job, use Frontend Developer; for a
+Tester or QA job, use Software Tester, QA Engineer, or the posting's testing role.
+Do not reuse a frontend headline for a testing job or combine frontend and testing roles.
+Only name both when the approved job title itself explicitly calls for both. Put relevant technologies
+and transferable skills in the summary, skills and projects, not in the headline.
 Keep useful supported detail and comfortable spacing; never shrink fonts, line spacing or
 margins, or drop a project simply to fit a page. Do not pass --max-pages for the CV build.
 Do not invent skills or facts; do not promote tiers. Never hand-write cv.tex.
@@ -229,14 +235,19 @@ class Runner:
                         plan = out / "raw/plan.json"
                         if ok and plan.is_file():
                             try:
-                                ok = load_json(plan).get("template", "ats-single-column") == batch["template"]
+                                chosen = load_json(plan)
+                                ok = (isinstance(chosen, dict)
+                                      and chosen.get("template", "ats-single-column") == batch["template"])
+                                if not ok:
+                                    log.write(f"CV plan template does not match the approved batch for {job['jobId']}.\n".encode("utf-8"))
                             except PipelineError:
                                 ok = False
                         else:
                             ok = False
                         if ok:
                             args = [sys.executable, str(Path(batch["workspace"]) / "scripts/render_cv.py"),
-                                    "--plan", str(plan), "--profile", str(Path(batch["workspace"]) / batch["profile"]),
+                                    "--plan", str(plan), "--job-title", job["jobTitle"],
+                                    "--profile", str(Path(batch["workspace"]) / batch["profile"]),
                                     "--template-root", batch["templateRoot"], "--out", str(out)]
                             ok = self.execute(args, log, cwd=batch["workspace"]) == 0
                         if ok:
