@@ -26,12 +26,20 @@ UI dùng Python hiện có, không cần npm build hay cài frontend dependencie
   review; không thể tái dựng phiên bản JD chưa từng được lưu.
 - **Tạo CV**: chọn các job đã duyệt, profile và template; xác nhận đúng tên
   ứng viên rồi chạy. Nếu không chọn checkbox job, nút dùng tất cả job đã duyệt.
+  Số lượng trên nút cập nhật ngay theo các checkbox đã chọn và chỉ đếm job đã duyệt.
   Chọn người tạo CV độc lập với preset tìm việc; cùng một run có thể tạo các
   batch riêng cho nhiều profile. Hồ sơ nằm ở `latex_cv/profile/<name>/`, gồm
   `personal.md` và các file profile đi kèm. Mặc định là `profile/hang`;
   `profile/dung` hiện là bản mẫu cần bổ sung email, điện thoại, bằng chứng và
   summary được duyệt trước khi tạo CV. UI vẫn đọc cấu trúc flat cũ và
   `profiles/<name>/` để tương thích. UI không tạo hay sửa profile.
+- **Thu thập JD bổ sung**: Run job search đã tự thu thập JD. Nút này chạy lại
+  adapter công khai cho hàng đợi/link mới; không khởi chạy một lượt tìm web mới.
+- **Nhập link / JD → Thu thập từ link**: đọc một link công khai, điền công ty,
+  vị trí và JD vào bản nháp để kiểm tra. Chỉ lưu khi bấm **Lưu & kiểm tra**, qua CLI
+  ingest. Bằng chứng nguồn được giữ nếu bạn không sửa form; form đã sửa được
+  lưu như JD thủ công và cần xác nhận đầy đủ. Nguồn cần đăng nhập/CAPTCHA hoặc
+  không có dữ liệu đọc được sẽ yêu cầu dán JD thủ công. Không tự duyệt job.
 - **Thư viện CV**: trạng thái từng batch/job, log và PDF đã được kiểm tra.
   Mỗi batch giữ bản JD đã duyệt, hash profile và thư mục output riêng trong
   `latex_cv/applications/seek-job/<batch-id>/<job-id>/` (theo `output_root`).
@@ -61,14 +69,19 @@ Job Object dọn cây tiến trình khi server dừng. Sau gián đoạn, run c�
 Resume với ngân sách còn lại. Không có browser takeover trong runner này;
 nguồn cần đăng nhập giữ blocked để nhập JD thủ công. Không tự Apply/gửi hồ sơ.
 
-CV runner dùng skill của workspace `latex_cv`, tạo CV tiếng Anh không giới hạn số trang.
+CV runner dùng skill của workspace `latex_cv`, tạo CV tiếng Anh tối đa hai trang.
 Mỗi CV cần ít nhất hai project khác nhau từ profile; ưu tiên mức độ phù hợp,
-rồi đến kỹ năng có thể áp dụng cho job. Không thu nhỏ chữ hay nén giãn dòng để ép trang.
+rồi đến kỹ năng có thể áp dụng cho job. Bắt đầu với hai project phù hợp nhất; chỉ thêm
+khi còn đủ chỗ. Nếu vượt hai trang, rút gọn nội dung ít liên quan rồi render/build lại.
+Không thu nhỏ chữ hay nén giãn dòng để ép trang. Link dùng nhãn ngắn nhưng giữ URL đầy đủ.
 Sau agent, runner chạy lại renderer và `build_and_validate.py` để kiểm tra
 profile evidence, template và PDF; chỉ công bố link PDF khi thành công. Máy cần
 các công cụ build mà `latex_cv` yêu cầu (ví dụ Tectonic). Build lỗi được giữ ở
 batch/log, không đánh dấu thành công. Các bài kiểm tra không chạy agent trả phí,
 live discovery hay tạo CV thật.
+Kiểm tra UI trên Edge headless với dữ liệu giả lập: `node tests/frontend_smoke.cjs`
+(cần Node.js 22+ và Microsoft Edge; có thể đặt `EDGE_BIN`). Test không chạy agent
+hay gọi nguồn tuyển dụng thật.
 
 Web server chỉ bind `127.0.0.1`, kiểm tra Host/Origin/CSRF, escape nội dung JD.
 Mọi mutation đi qua CLI `ui-action` hoặc `ingest`. File UI nằm dưới `state/ui/`,

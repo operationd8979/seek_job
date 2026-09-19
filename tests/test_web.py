@@ -16,7 +16,8 @@ from seek_job.dryrun import fixture_root, synthetic_observation
 from seek_job.engine import Session
 from seek_job.storage import Store
 from seek_job.workflow import mutate, detail, dashboard, batch_path, operations
-from seek_job.web import make_server, command, cv_prompt, reveal, Runner
+from seek_job.web import make_server, command, cv_prompt, reveal, Runner, preview_jd
+from seek_job.sources import FetchError
 import subprocess
 import sys
 
@@ -333,7 +334,7 @@ class WorkflowTests(unittest.TestCase):
                 self.assertEqual(args[args.index("--job-title") + 1], batch["jobs"][0]["jobTitle"])
                 (out / "raw/cv.tex").write_text("SYNTHETIC ONLY", encoding="utf-8")
             elif "build_and_validate.py" in args[1]:
-                self.assertNotIn("--max-pages", args)
+                self.assertEqual(args[args.index("--max-pages") + 1], "2")
                 (out / "Synthetic_CV.pdf").write_bytes(b"%PDF SYNTHETIC TEST ONLY")
             return 0
         with patch("seek_job.web.action", side_effect=lambda root, data: mutate(root, data)), \
@@ -382,6 +383,69 @@ class WorkflowTests(unittest.TestCase):
         tree.close()
         proc.wait(timeout=5)
         self.assertIsNotNone(proc.poll())
+
+    def test_manual_link_preview_then_save_preserves_source_evidence(self):
+        server = make_server(self.root, 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base = f"http://127.0.0.1:{server.server_port}"
+        try:
+            csrf = json.load(urlopen(base + "/api/state"))["csrf"]
+            def post(path, payload):
+                return json.load(urlopen(Request(base + path, data=json.dumps(payload).encode(), headers={
+                    "Origin": base, "X-CSRF-Token": csrf, "Content-Type": "application/json"})))
+            url = "https://jobs.example.test/frontend"
+            body = "Build accessible frontend interfaces. Requirements: React and testing. Benefits: flexible hours."
+            data = {"@type": "JobPosting", "title": "Frontend Developer", "url": url,
+                    "hiringOrganization": {"name": "Example Company"}, "description": body}
+            html = '<script type="application/ld+json">' + json.dumps(data) + '</script>'
+            html += '<h1>Frontend Developer</h1><p>Example Company</p><p>' + body + '</p><button>Apply now</button>'
+            before = detail(self.root, self.run)
+            with patch("seek_job.sources.HttpClient.get", return_value=html) as fetch:
+                result = post("/api/fetch-jd", {"runId": self.run, "url": url})
+            fetch.assert_called_once_with(url)
+            obs = result["observation"]
+            self.assertEqual(obs["company"], "Example Company")
+            self.assertEqual(obs["jobTitle"], "Frontend Developer")
+            self.assertEqual(obs["description"].strip(), body)
+            self.assertEqual(obs["descriptionStatus"], "complete")
+            self.assertEqual(obs["availabilityStatus"], "open")
+            self.assertEqual(detail(self.root, self.run), before)  # preview never saves or approves
+            post("/api/import", {"runId": self.run, "observation": obs})
+            saved = next(j for j in detail(self.root, self.run)["jobs"] if j["sourceUrl"] == url)
+            self.assertEqual(saved["_description"], obs["description"])
+            self.assertEqual(saved["descriptionStatus"], "complete")
+            self.assertEqual(saved["review"]["status"], "pending")
+            self.assertEqual(saved["evidence"], obs["evidence"])
+            with patch("seek_job.sources.HttpClient.get", side_effect=FetchError("browser_required")):
+                with self.assertRaises(HTTPError) as error:
+                    post("/api/fetch-jd", {"runId": self.run, "url": url})
+            self.assertIn("browser_required", json.load(error.exception)["error"])
+            with patch.object(server.runner, "busy", return_value=True), patch("seek_job.web.fetch_candidate") as fetch:
+                with self.assertRaises(HTTPError):
+                    post("/api/fetch-jd", {"runId": self.run, "url": url})
+                fetch.assert_not_called()
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+    def test_preview_rejects_invalid_url_and_cross_job_edit_without_fetching(self):
+        for extra in ({"url": "file:///private"}, {"url": ""},
+                      {"url": "https://example.test/new", "jobId": self.job}):
+            with self.subTest(extra=extra), patch("seek_job.web.fetch_candidate") as fetch:
+                with self.assertRaises(PipelineError):
+                    preview_jd(self.root, {"runId": self.run, **extra})
+                fetch.assert_not_called()
+
+    def test_preview_keeps_partial_unverified_description(self):
+        data = {"@type": "JobPosting", "title": "Frontend Developer",
+                "hiringOrganization": {"name": "Example"}, "description": "Hidden metadata only"}
+        html = '<script type="application/ld+json">' + json.dumps(data) + '</script><p>Apply now</p>'
+        with patch("seek_job.sources.HttpClient.get", return_value=html):
+            obs = preview_jd(self.root, {"runId": self.run, "url": "https://example.test/job"})["observation"]
+        self.assertEqual(obs["descriptionStatus"], "partial")
+        self.assertEqual(obs["availabilityStatus"], "unknown")
 
     def test_http_origin_csrf_and_readonly_get(self):
         server = make_server(self.root, 0)

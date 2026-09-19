@@ -11,7 +11,7 @@ let toastTimer, polling=false;
 function toast(message,error=false){const t=$('#toast');t.textContent=message;t.className=error?'error':'';t.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.hidden=true,error?9000:4000);}
 async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':state.data.csrf},body:JSON.stringify(body)}:{});const data=await r.json();if(!r.ok)throw Error(data.error||'Không thể hoàn tất thao tác.');return data;}
 function modal(title,body,foot){$('#modal-content').innerHTML='<div class="modal-head"><h2>'+title+'</h2>'+btn('✕','close','quiet','aria-label="Đóng"')+'</div><div class="modal-body">'+body+'</div><div class="modal-foot">'+btn('Hủy','close')+foot+'</div>';$('#modal').showModal();}
-function close(){ $('#modal').close(); }
+function close(){ if(!state.fetching)$('#modal').close(); }
 function active(){return state.data.operations.find(o=>['queued','running','cancelling'].includes(o.status));}
 function heading(kicker,title,sub,action=''){return '<div class="page-heading"><div><div class="eyebrow">'+kicker+'</div><h1>'+title+'</h1><p>'+sub+'</p></div>'+action+'</div>';}
 function operationBanner(){
@@ -42,7 +42,7 @@ async function openRun(id){
 function renderReview(){
  const d=state.run,cp=d.checkpoint;const approved=d.jobs.filter(j=>j.review.status==='approved');
  $('#main').innerHTML=heading('SEARCH → REVIEW → APPROVE','Review cơ hội','Run '+esc(cp.runId)+' · '+date(cp.startedAt),btn('← Lịch sử','back','quiet'))+flow(approved.length?3:2)+operationBanner()+
- '<div class="panel"><div class="panel-heading"><div><h2>'+esc(summaryLabel(d.config.search_profiles.map(p=>p.id).join(' / ')))+' <span class="count-pill">'+d.jobs.length+' jobs</span></h2><p>'+cp.tasks.filter(t=>t.status==='done').length+'/'+cp.tasks.length+' truy vấn · '+approved.length+' đã duyệt</p></div><div class="tools">'+btn('Tiếp tục tìm','resume','',active()?'disabled':'')+btn('Thu thập JD','collect','',active()?'disabled':'')+btn('Nhập link / JD','import','',active()?'disabled':'')+btn('Tạo CV ('+approved.length+') →','cv-dialog','primary',!approved.length||active()?'disabled':'')+'</div></div></div>'+
+ '<div class="panel"><div class="panel-heading"><div><h2>'+esc(summaryLabel(d.config.search_profiles.map(p=>p.id).join(' / ')))+' <span class="count-pill">'+d.jobs.length+' jobs</span></h2><p>'+cp.tasks.filter(t=>t.status==='done').length+'/'+cp.tasks.length+' truy vấn · '+approved.length+' đã duyệt</p></div><div class="tools">'+btn('Tiếp tục tìm','resume','',active()?'disabled':'')+btn('Thu thập JD bổ sung','collect','',(active()?'disabled ':'')+'title="Run job search đã tự thu thập JD. Dùng nút này cho link mới hoặc JD còn thiếu."')+btn('Nhập link / JD','import','',active()?'disabled':'')+btn('Tạo CV →','cv-dialog','primary','id="create-cv"')+'</div></div></div>'+
  (d.legacySnapshot?'<div class="notice info">Run cũ chưa có snapshot JD riêng. Màn hình đang đọc dữ liệu đã lưu hiện có; lần review đầu sẽ lưu phiên bản này vào lịch sử run.</div>':'')+
  '<div class="tools"><input id="job-search" class="search" placeholder="Tìm công ty hoặc vị trí…" aria-label="Tìm job"><select id="job-filter" aria-label="Lọc job"><option value="all">Tất cả job</option><option value="pending">Chờ duyệt</option><option value="approved">Đã duyệt</option><option value="rejected">Đã loại</option><option value="needs_review">Cần kiểm tra</option><option value="blocked">Thiếu JD / bị chặn</option></select>'+btn('Chọn tất cả đang hiển thị','select-visible','quiet')+btn('Cấu hình & tiến độ','config','quiet')+'</div><br><div id="selection"></div><div class="review-layout"><section class="panel"><div class="job-list" id="job-list"></div></section><section class="panel"><div class="job-detail" id="job-detail"></div></section></div>';
  $('#job-search').value=state.search;$('#job-filter').value=state.filter;renderJobs();renderJob();renderSelection();
@@ -51,8 +51,10 @@ function filteredJobs(){return state.run.jobs.filter(j=>(j.jobTitle+' '+j.compan
 function renderJobs(){
  $('#job-list').innerHTML=filteredJobs().map(j=>'<div class="job-row '+(j.jobId===state.job?'active':'')+'" data-job="'+j.jobId+'" role="button" tabindex="0"><input type="checkbox" aria-label="Chọn '+esc(j.jobTitle)+'" data-select="'+j.jobId+'" '+(state.selected.has(j.jobId)?'checked':'')+'><div><h3>'+esc(j.jobTitle||'Chưa có tiêu đề')+'</h3><p>'+esc(j.company||'Chưa rõ công ty')+' · '+esc(j.locations?.join(', ')||'Chưa rõ địa điểm')+'</p><div class="badges">'+badge(j.review.status)+badge(j.matchStatus)+(j.descriptionStatus!=='complete'?'<span class="badge">Thiếu JD</span>':'')+'</div></div></div>').join('')||'<div class="empty"><h3>Không có job phù hợp bộ lọc</h3><p>Thử đổi bộ lọc hoặc nhập link tuyển dụng.</p></div>';
 }
+function cvCandidates(){return state.run.jobs.filter(j=>j.review.status==='approved'&&(!state.selected.size||state.selected.has(j.jobId)));}
 function renderSelection(){
- const n=state.selected.size;
+ const n=state.selected.size, count=cvCandidates().length, button=$('#create-cv');
+ if(button){button.textContent=(n?'Tạo CV đã chọn (':'Tạo CV tất cả đã duyệt (')+count+') →';button.disabled=!count||!!active();}
  $('#selection').innerHTML=n?'<div class="selection-bar"><span>Đã chọn <strong>'+n+' job</strong></span><div class="tools">'+btn('Bỏ chọn','clear-selection','quiet')+btn('Loại đã chọn','reject-many')+btn('Duyệt đã chọn','approve-many','primary')+'</div></div>':'';
 }
 function currentJob(){return state.run.jobs.find(j=>j.jobId===state.job);}
@@ -87,26 +89,28 @@ function reviewDialog(status,ids){
  btn('Lưu quyết định','save-review','primary',blocked.length?'disabled':''));
 }
 function cvDialog(){
- const jobs=state.run.jobs.filter(j=>j.review.status==='approved'&&(!state.selected.size||state.selected.has(j.jobId)));
+ const jobs=cvCandidates();
  if(!jobs.length)return toast('Chọn job đã duyệt trước khi tạo CV.',true);
  state.cvJobs=jobs.map(j=>j.jobId);const cv=state.run.cv;
  modal('Tạo CV cho '+jobs.length+' job','<p>Chọn người tạo CV độc lập với mục tiêu tìm kiếm. Mỗi job có một CV riêng, dùng đúng hồ sơ đã chọn và JD đã duyệt.</p><label class="field">Profile ứng viên<select id="cv-profile">'+cv.profiles.map(p=>'<option value="'+esc(p.path)+'">'+esc(p.name)+' · '+esc(p.path)+'</option>').join('')+'</select></label><label class="field">Template<select id="cv-template">'+cv.templates.map(t=>'<option '+(t===cv.defaultTemplate?'selected':'')+'>'+esc(t)+'</option>').join('')+'</select></label><label class="check"><input type="checkbox" id="confirm-profile">Tôi xác nhận profile được chọn thuộc đúng người ứng tuyển.</label><div class="notice info">Chỉ tạo CV.'+(state.data.agent?' Model: '+esc(state.data.agent.model)+' · reasoning '+esc(state.data.agent.reasoning_effort)+'.':'')+' PDF sẽ xuất hiện trong Thư viện CV sau khi qua bước kiểm tra của latex_cv.</div>',
  btn('Tạo '+jobs.length+' CV →','start-cv','primary',!cv.profiles.length||active()?'disabled':''));
 }
 function importDialog(job){
- state.importJob=job;
+ state.importJob=job;state.fetchedDraft=null;
  const facts=job?Object.fromEntries(['locations','jobCountries','workMode','employmentType','level','datePosted','salary','remoteScope','eligibleCountries','timezoneRequirements','timezoneOverlapHours','sponsorship','authorizationRequired'].map(k=>[k,job[k]??null])):{};
  const seed=job?{schemaVersion:1,jobId:job.jobId,source:'manual',url:job.sourceUrl,company:job.company,jobTitle:job.jobTitle,description:job._description||'',sourceContent:job._sourceContent||'',descriptionStatus:job.descriptionStatus,capturedAt:job.fetchedAt||nowISO(),descriptionKind:'user_supplied',completenessEvidence:job.completenessEvidence||'',availabilityStatus:job.availabilityStatus,availabilityCheckedAt:job.availabilityCheckedAt,facts,evidence:job.evidence||{},roleMatches:job.roleMatches||{}}:{schemaVersion:1,source:'web_search',url:'https://'};
  state.observationSeed=seed;
  modal(job?'Bổ sung nội dung tuyển dụng':'Nhập link hoặc JD',
- '<p>Dán link để đưa vào hàng đợi thu thập, hoặc dán toàn bộ JD bạn đã đọc từ tin gốc.</p>'+ 
+ '<p>Dán link rồi bấm Thu thập từ link để điền thông tin. Kiểm tra nội dung và bấm Lưu & kiểm tra để thêm vào run. Bạn cũng có thể dán JD thủ công.</p>'+
  '<label class="field">Link tuyển dụng<input id="capture-url" type="url" value="'+esc(job?.sourceUrl||'')+'" placeholder="https://…"></label>'+
+ '<div class="tools">'+btn('Thu thập từ link','fetch-jd')+'</div><p id="capture-status" role="status" class="muted"></p>'+
  '<div class="capture-grid"><label class="field">Công ty<input id="capture-company" value="'+esc(job?.company||'')+'"></label><label class="field">Vị trí<input id="capture-title" value="'+esc(job?.jobTitle||'')+'"></label></div>'+
  '<label class="field">Nội dung JD<textarea id="capture-jd" rows="9" placeholder="Toàn bộ mô tả, yêu cầu và quyền lợi…">'+esc(job?._description||'')+'</textarea></label>'+
  '<label class="field">Thời gian bạn lấy JD<input id="capture-time" type="datetime-local" value="'+esc(new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16))+'"></label>'+
  '<label class="check"><input id="capture-complete" type="checkbox">Tôi xác nhận đây là toàn bộ JD từ tin gốc, không phải đoạn trích kết quả tìm kiếm.</label>'+
  '<details><summary>Nhập dữ liệu có cấu trúc & bằng chứng (nâng cao)</summary><label class="check"><input id="use-json" type="checkbox">Sử dụng JSON bên dưới thay cho form</label><label class="field">Observation JSON<textarea id="observation" rows="12" spellcheck="false">'+esc(JSON.stringify(seed,null,2))+'</textarea></label></details>',btn('Lưu & kiểm tra','save-observation','primary'));
 }
+function captureFields(){return ['url','company','title','jd','time'].map(k=>$('#capture-'+k).value).concat($('#capture-complete').checked);}
 function nowISO(){return new Date().toISOString();}
 function renderCV(){
  $('#main').innerHTML=heading('APPROVED JOBS → TAILORED CVS','Thư viện CV','Các batch độc lập, dùng JD đã duyệt và profile đã xác nhận.')+operationBanner()+
@@ -163,9 +167,29 @@ document.addEventListener('click',async e=>{
  if(a==='confirm-delete-cv'){await api('/api/action',{action:'cv-delete',id:state.deleteBatchId});close();toast('Đã xóa batch CV.');return await refresh();}
  if(a==='restore'){await api('/api/action',{action:'restore',runId:id});toast('Đã khôi phục run.');return await refresh();}
  if(a==='import'||a==='edit-job')return importDialog(a==='edit-job'?currentJob():null);
+ if(a==='fetch-jd'){
+ const url=$('#capture-url').value.trim();if(!httpUrl(url))throw Error('Nhập link http hoặc https hợp lệ.');
+ const dialog=$('#modal-content'), controls=[...dialog.querySelectorAll('input,textarea,button')];
+ controls.forEach(c=>{c.dataset.wasDisabled=String(c.disabled);c.disabled=true;});
+ state.fetching=true;
+ const status=$('#capture-status');status.textContent='Đang thu thập thông tin từ link…';
+ try{
+ const result=await api('/api/fetch-jd',{runId:state.run.checkpoint.runId,url,jobId:state.importJob?.jobId});
+ const o=result.observation;
+ $('#capture-url').value=o.url;$('#capture-company').value=o.company||'';$('#capture-title').value=o.jobTitle||'';$('#capture-jd').value=o.description||'';
+ const time=new Date(o.capturedAt);$('#capture-time').value=new Date(time.getTime()-time.getTimezoneOffset()*60000).toISOString().slice(0,16);
+ $('#capture-complete').checked=false;$('#use-json').checked=false;
+ $('#observation').value=JSON.stringify(o,null,2);
+ state.fetchedDraft={observation:o,fields:captureFields()};
+ status.textContent=(o.descriptionStatus==='complete'?'Đã lấy JD đầy đủ theo bằng chứng nguồn.':'Chỉ lấy được một phần JD; hãy kiểm tra và bổ sung.')+' Chưa lưu vào run; bấm Lưu & kiểm tra khi sẵn sàng.';
+ }catch(err){status.textContent=err.message;throw err;}
+ finally{state.fetching=false;controls.forEach(c=>{c.disabled=c.dataset.wasDisabled==='true';delete c.dataset.wasDisabled;});}
+ return;
+ }
  if(a==='save-observation'){
  let observation;
  if($('#use-json').checked)observation=JSON.parse($('#observation').value);
+ else if(state.fetchedDraft&&JSON.stringify(captureFields())===JSON.stringify(state.fetchedDraft.fields))observation=state.fetchedDraft.observation;
  else{
  const jd=$('#capture-jd').value.trim(),url=$('#capture-url').value.trim();
  if(!url)throw Error('Nhập link nguồn của tin tuyển dụng.');
@@ -201,5 +225,6 @@ async function poll(){
  if(!$('#modal').open&&(before!==JSON.stringify(d.operations)||beforeRuns!==JSON.stringify(d.runs))){if(state.view==='review')state.run=await api('/api/run?id='+state.run.checkpoint.runId);render();}
  }catch(err){$('#runner-status').textContent='Mất kết nối · đang thử lại…';}finally{polling=false;}
 }
+$('#modal').addEventListener('cancel',e=>{if(state.fetching)e.preventDefault();});
 refresh().catch(e=>{$('#main').innerHTML='<div class="notice">'+esc(e.message)+'</div>';});
 setInterval(poll,3000);
