@@ -2,12 +2,35 @@
 
 ## Web UI
 
+### Khởi động UI
+
+Mở PowerShell, chuyển đến thư mục project rồi chạy:
+
 ~~~powershell
-python -m seek_job ui
+Set-Location 'C:\Users\remotechip\Documents\SYNC\Github\seek_job'
+python -m seek_job ui --port 8765
 ~~~
 
 Mở **http://127.0.0.1:8765**. Có thể đổi cổng bằng `--port 8768`.
 UI dùng Python hiện có, không cần npm build hay cài frontend dependencies.
+Giữ terminal mở trong lúc dùng UI. Nếu project nằm ở nơi khác, thay đường dẫn
+trong lệnh `Set-Location` cho đúng.
+
+### Tắt hoặc khởi động lại UI
+
+Nhấn **Ctrl + C** trong terminal đang chạy UI để tắt server.
+Nếu UI đang chạy nền, dùng PowerShell để tắt tiến trình đang nghe cổng UI:
+
+~~~powershell
+Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue |
+    Select-Object -ExpandProperty OwningProcess -Unique |
+    ForEach-Object { Stop-Process -Id $_ }
+~~~
+
+Nếu đã đổi cổng, thay `8765` bằng cổng đang dùng. Để khởi động lại, tắt UI rồi
+chạy lại lệnh khởi động bên trên và tải lại trang trình duyệt.
+
+### Sử dụng UI
 
 - **Run job search**: chọn mục tiêu Tester / Frontend, Fullstack / DevOps hoặc
   cấu hình hiện tại. Preset được snapshot
