@@ -1,5 +1,8 @@
 # seek_job
 
+Hướng dẫn từng bước trên Windows: [Khởi động app Seek Job](docs/start-app.md)
+(cài đặt lần đầu, mở app, tắt/khởi động lại và xử lý lỗi).
+
 ## Web UI
 
 ### Khởi động UI
